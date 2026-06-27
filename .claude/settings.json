@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "permissions": {
+    "allow": [
+      "mcp__Supabase__*",
+      "mcp__Slack__*",
+      "mcp__github__*",
+      "mcp__n8n__*",
+      "mcp__Shopify__*",
+      "mcp__Canva__*",
+      "mcp__Vercel__*",
+      "mcp__Google_Drive__*",
+      "mcp__Higgsfield__*",
+      "Bash",
+      "Write",
+      "Edit",
+      "Read",
+      "Glob",
+      "Grep",
+      "WebFetch",
+      "WebSearch",
+      "Workflow",
+      "Agent",
+      "ToolSearch"
+    ]
+  }
+}
