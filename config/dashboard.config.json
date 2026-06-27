@@ -1,0 +1,91 @@
+{
+  "$comment": "頭盔王 Daily Dashboard 設定檔。cron 與 skill 都從這裡讀取來源與目標。修改這裡即可調整，不需要改 skill 邏輯。",
+
+  "schedule": {
+    "time_local": "09:30",
+    "timezone": "Asia/Hong_Kong",
+    "frequency": "daily"
+  },
+
+  "delivery": {
+    "platform": "slack",
+    "channel_name": "daily",
+    "channel_id": "TODO_CONFIRM_CHANNEL_ID",
+    "fallback_dm_user_id": "U02J06REWP5",
+    "language": "zh-Hant",
+    "note": "若找不到 daily 頻道，先發 DM 給本人 (fallback_dm_user_id)。確認頻道後填入 channel_id。"
+  },
+
+  "sections": {
+    "github_trending": {
+      "enabled": true,
+      "source": "web",
+      "url": "https://github.com/trending",
+      "interests": ["ai-agents", "developer-productivity", "automation", "e-commerce", "saas"],
+      "languages": ["TypeScript", "Python", "Go"],
+      "top_n": 5
+    },
+
+    "productivity": {
+      "enabled": true,
+      "source": "ai-generated",
+      "focus": ["個人生產力", "公司/團隊生產力"],
+      "note": "結合當日其他區塊內容（停滯工作、生意數據）給出 1-2 個可立即執行的建議。"
+    },
+
+    "skill_workflow": {
+      "enabled": true,
+      "source": "rotating-guide",
+      "note": "每天輪播一個『如何建立 Claude skill』的步驟/技巧，逐步累積成內部 skill 開發手冊。"
+    },
+
+    "stalled_work": {
+      "enabled": true,
+      "source": "github",
+      "stale_days": 3,
+      "repos": [
+        "hmkaibot-bot/dailyupdates"
+      ],
+      "watch": ["assigned_issues", "open_prs", "review_requested"],
+      "note": "目前 GitHub MCP 權限僅限 hmkaibot-bot/dailyupdates。若要監測更多 repo，需擴大授權範圍後把 repo 加進這個清單。"
+    },
+
+    "helmet_king": {
+      "enabled": true,
+      "source": "supabase",
+      "sources": [
+        {
+          "label": "零售 (Retail / Helmet King Shopify)",
+          "project_name": "Retail Dashboard",
+          "project_id": "myrangmxyjamsupbxbba",
+          "confirmed": true,
+          "key_tables": ["shopify_orders", "shopify_order_lines", "shopify_products", "shopify_inventory", "meta_ad_insights"]
+        },
+        {
+          "label": "賣車 / 車房 (Garage — Helmet King + 26King)",
+          "project_name": "garage-system",
+          "project_id": "qxxegmvwtndoosqrhyar",
+          "confirmed_pending_user": true,
+          "key_tables": ["job_orders", "appointments", "invoice_summary", "daily_cash_reports", "service_history", "purchase_orders"]
+        },
+        {
+          "label": "BC (Business Central ERP)",
+          "project_name": "Retail Dashboard (bc_* 表) + garage-system (bc_items_mirror, bc_item_ledger)",
+          "project_id": "myrangmxyjamsupbxbba",
+          "confirmed_pending_user": true,
+          "key_tables": ["bc_sales_invoices", "bc_invoice_lines", "bc_inventory", "bc_purchase_invoices"],
+          "note": "BC = Microsoft Dynamics 365 Business Central。bc_sales_invoices 註解為『BC CARSHOP 維度銷售發票』。"
+        }
+      ],
+      "metrics": ["當日營業額", "訂單/工單數", "熱賣商品/熱門服務", "與前一日及上週同日比較", "資料新鮮度 (etl_sync_log / bc_sync_state)"],
+      "data_freshness_check": true,
+      "candidate_projects_seen": {
+        "26king-trading": "kpvakfbxpachnotjvnyu",
+        "Finance Module": "bmsagxmsclkekwgmjkis",
+        "rental project": "xhyhfrxhvumskqzsoahk",
+        "shopify-inventory-ops": "rywfenzskxtcegyudqwl"
+      },
+      "security_note": "Retail Dashboard 與 garage-system 皆有多張表 RLS 停用、暴露給 anon key（見 README 安全提醒）。dashboard 只讀資料，不影響此問題，但建議另行處理。"
+    }
+  }
+}
