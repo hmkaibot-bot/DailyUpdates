@@ -2,7 +2,7 @@
 
 每天早上 **09:30** 自動彙整一份儀表板，發到 Slack 的 `daily` 頻道。由 Claude Code 排程（cron）觸發，執行 `.claude/skills/daily-dashboard` skill。
 
-## 五大區塊
+## 六大區塊
 
 | # | 區塊 | 來源 |
 |---|------|------|
@@ -11,6 +11,7 @@
 | 3 | 🛠️ 建立 Skill 的工作流程 | 每日輪播指南 |
 | 4 | ⏳ 停滯工作提醒 | GitHub issues / PR |
 | 5 | 🪖 頭盔王生意報表 | Supabase（零售 / 車房 / BC） |
+| 6 | 💬 社群熱門（AI + 電單車） | WebSearch（Reddit 直連被擋，改用搜尋歸納） |
 
 ## 專案結構
 

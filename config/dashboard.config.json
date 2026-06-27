@@ -40,6 +40,17 @@
       "note": "每天輪播一個『如何建立 Claude skill』的步驟/技巧，逐步累積成內部 skill 開發手冊。"
     },
 
+    "community_trends": {
+      "enabled": true,
+      "source": "web-search",
+      "topics": {
+        "ai": ["r/LocalLLaMA", "r/artificial", "r/singularity", "AI 本週話題"],
+        "motorcycle": ["r/motorcycles", "電單車 摩托 2026 趨勢", "helmet gear ADV electric"]
+      },
+      "per_topic": 3,
+      "note": "Reddit 直連被本環境代理封鎖，故用 WebSearch 歸納主題（非逐帖榜）。要真 Reddit 榜需配 Reddit API 憑證（n8n / edge function）。"
+    },
+
     "stalled_work": {
       "enabled": true,
       "source": "github",
