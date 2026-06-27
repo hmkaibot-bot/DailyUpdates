@@ -1,7 +1,18 @@
 # 頭盔王資料缺口調查報告（2026-06-27）
 
-唯讀調查（6 個 agent、150 次查詢，**未對任何生意資料寫入**）＋對抗式驗證。
+唯讀調查（6 個 agent、150 次查詢）＋對抗式驗證，後續經使用者核准執行修復。
 專案：garage-system = `qxxegmvwtndoosqrhyar`、Retail Dashboard = `myrangmxyjamsupbxbba`。
+
+## ✅ 執行狀態（2026-06-27，經使用者核准）
+
+| 缺口 | 動作 | 狀態 |
+|---|---|---|
+| 1 invoice_summary | 回填 2026-04-09~06-26 共 **399 列 / $910,129** 進 garage-system | ✅ 已完成（總列 6293→6692、最新日期→06-26、重複 0） |
+| 1 持續同步 | 同步步驟內建進 `daily-dashboard` skill「步驟 0」（每日跑、免憑證） | ✅ 已建（隨每日 dashboard 執行） |
+| 2 final_price | 套用 trigger `trg_job_orders_compute_final_price`（結案且全任務已定價才寫、不覆蓋、不阻擋） | ✅ 已套用 garage-system |
+| 3 daily_cash_reports | 建 `garage-daily-close` skill（往後人手埋數） | ✅ 已建（人手觸發） |
+
+> 回填採 `NOT EXISTS(invoice_number)` 去重，可安全重跑。final_price trigger 可一鍵移除（見該段 SQL 註解）。
 
 ## 最重要結論
 

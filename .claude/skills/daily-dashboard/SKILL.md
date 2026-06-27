@@ -9,6 +9,7 @@ description: 產生頭盔王每日 dashboard 並發送到 Slack daily 頻道。�
 
 ## 執行流程（總覽）
 
+0. **車房發票同步**（每日先跑，把 BC GARAGE 新發票補進 garage-system `invoice_summary`，見下方「附：同步步驟」）。失敗不影響報表，記錄後繼續。
 1. 讀 `config/dashboard.config.json` 取得來源、目標頻道、各區塊開關。
 2. 依序產生 5 個區塊（見 `daily-dashboard/sections/`）。任一區塊抓取失敗 → 不中斷，該區塊標註「⚠️ 今日無法取得」並附原因，其餘照常。
 3. 用 `daily-dashboard/slack-template.md` 的格式組成完整訊息（繁體中文）。
@@ -34,6 +35,27 @@ description: 產生頭盔王每日 dashboard 並發送到 Slack daily 頻道。�
 - **失敗不中斷**：任一資料源掛掉就降級該區塊，整份 dashboard 照樣送出。
 - **不外洩機密**：Slack 連結勿放敏感 query string；生意數字只發到指定頻道。
 - **可調**：所有來源、門檻、開關都在 config，不要把這些寫死在邏輯裡。
+
+## 附：車房發票同步步驟（步驟 0 細節）
+
+把 Retail Dashboard 的 BC GARAGE 發票，補進 garage-system `invoice_summary`（修復「停在 4/8」的根因——詳見 `/DATA-GAPS.md`）。在每日 session 內用 Supabase MCP 對兩個專案各跑一次，免額外憑證：
+
+1. 在 garage-system 取目前最新日期：`SELECT max(invoice_date) FROM invoice_summary;`
+2. 在 Retail Dashboard 產生待補列（`format(%L)` 安全跳脫），窗 = (上述最新日期, 今天]：
+   ```sql
+   SELECT string_agg(format('(%L,%L,%L,%L::date,%s,%s)',
+     customer_number, customer_name, number, invoice_date::text,
+     total_amount_incl_tax::text,
+     (SELECT count(*) FROM bc_invoice_lines l WHERE l.invoice_number=i.number)::text), E',\n')
+   FROM bc_sales_invoices i
+   WHERE dimension1_code='GARAGE' AND number LIKE 'SI-%' AND status<>'Canceled'
+     AND invoice_date > :last_date AND invoice_date <= current_date;
+   ```
+3. 在 garage-system `INSERT ... SELECT FROM (VALUES …) AS v(bc_customer_no,customer_name,invoice_number,invoice_date,total_amount,line_count)`，
+   customer_id 以 `customer_profiles.bc_customer_no` 子查詢對應，並 `WHERE NOT EXISTS (… invoice_number)` 防重覆（可安全重跑）。
+
+> 更穩健的長期做法（需憑證、非必要）：在 garage-system 設 `postgres_fdw` 連 Retail Dashboard，
+> 或部署一支 edge function + pg_cron 定時同步。需要 Retail Dashboard 的 service key 作 secret。
 
 ## 手動測試
 
