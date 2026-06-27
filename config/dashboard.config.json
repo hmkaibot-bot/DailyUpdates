@@ -9,11 +9,12 @@
 
   "delivery": {
     "platform": "slack",
-    "channel_name": "daily",
-    "channel_id": "TODO_CONFIRM_CHANNEL_ID",
-    "fallback_dm_user_id": "U02J06REWP5",
+    "mode": "dm",
+    "channel_id": "U02J06REWP5",
+    "channel_name": "(DM to self)",
+    "send_mode": "direct",
     "language": "zh-Hant",
-    "note": "若找不到 daily 頻道，先發 DM 給本人 (fallback_dm_user_id)。確認頻道後填入 channel_id。"
+    "note": "目前發 DM 給本人 (channel_id = 自己的 user_id)。日後若要改發到頻道，把 mode 改 'channel' 並填頻道 channel_id 即可。cron 自動執行用 direct（直接發），人手測試可改成 draft。"
   },
 
   "sections": {
@@ -65,14 +66,14 @@
           "label": "賣車 / 車房 (Garage — Helmet King + 26King)",
           "project_name": "garage-system",
           "project_id": "qxxegmvwtndoosqrhyar",
-          "confirmed_pending_user": true,
+          "confirmed": true,
           "key_tables": ["job_orders", "appointments", "invoice_summary", "daily_cash_reports", "service_history", "purchase_orders"]
         },
         {
           "label": "BC (Business Central ERP)",
           "project_name": "Retail Dashboard (bc_* 表) + garage-system (bc_items_mirror, bc_item_ledger)",
           "project_id": "myrangmxyjamsupbxbba",
-          "confirmed_pending_user": true,
+          "confirmed": true,
           "key_tables": ["bc_sales_invoices", "bc_invoice_lines", "bc_inventory", "bc_purchase_invoices"],
           "note": "BC = Microsoft Dynamics 365 Business Central。bc_sales_invoices 註解為『BC CARSHOP 維度銷售發票』。"
         }

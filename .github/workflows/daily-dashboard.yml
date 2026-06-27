@@ -1,0 +1,68 @@
+# 頭盔王 Daily Dashboard — GitHub Actions 排程範本（方案 B）
+#
+# 這是「容器之外、完全無人值守」的排程做法。詳見 SCHEDULING.md。
+#
+# ⚠️ 啟用前必須先到 repo Settings → Secrets and variables → Actions 設定：
+#   ANTHROPIC_API_KEY                    （必須，跑 Claude Code headless）
+#   SLACK_BOT_TOKEN  或 SLACK_WEBHOOK_URL（發 Slack）
+#   SUPABASE_URL / SUPABASE_SERVICE_KEY  （讀頭盔王資料）
+# 在 secrets 備齊前，下方步驟會自我略過，不會誤報成功。
+#
+# 注意：headless CI 沒有 claude.ai 的互動式 MCP 授權，所以資料存取要走
+# 上面這些 token/金鑰（非 MCP）。最省事的長期方案仍是 SCHEDULING.md 的方案 A。
+
+name: daily-dashboard
+
+on:
+  schedule:
+    # 09:30 Asia/Hong_Kong = 01:30 UTC。避開整點尖峰用 01:27 UTC。
+    - cron: "27 1 * * *"
+  workflow_dispatch: {}   # 允許手動觸發測試
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+concurrency:
+  group: daily-dashboard
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: 檢查 secrets 是否備齊
+        id: guard
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::尚未設定 ANTHROPIC_API_KEY，略過本次排程。請見 SCHEDULING.md 方案 B。"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 安裝 Claude Code
+        if: steps.guard.outputs.ready == 'true'
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: 產生並發送 Daily Dashboard
+        if: steps.guard.outputs.ready == 'true'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          claude -p "請執行 daily-dashboard skill：讀取 config/dashboard.config.json，\
+          產生五大區塊（GitHub 熱門項目、生產力建議、Skill 工作流程、GitHub 停滯工作、\
+          頭盔王生意報表），用環境變數中的 Slack 與 Supabase 憑證取資料與發送。\
+          任一區塊失敗則降級不中斷。" \
+          --allowedTools "Bash,Read,Glob,Grep,WebFetch,WebSearch" \
+          --permission-mode acceptEdits
