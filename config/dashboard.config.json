@@ -63,19 +63,21 @@
           "key_tables": ["shopify_orders", "shopify_order_lines", "shopify_products", "shopify_inventory", "meta_ad_insights"]
         },
         {
-          "label": "賣車 / 車房 (Garage — Helmet King + 26King)",
+          "label": "車房營收 (Garage revenue — 權威來源)",
+          "project_name": "Retail Dashboard — BC GARAGE 維度",
+          "project_id": "myrangmxyjamsupbxbba",
+          "confirmed": true,
+          "authoritative_query": "bc_sales_invoices WHERE dimension1_code='GARAGE' AND number LIKE 'SI-%' AND status<>'Canceled'",
+          "key_tables": ["bc_sales_invoices", "bc_invoice_lines"]
+        },
+        {
+          "label": "車房營運 (Garage ops — 預約/工單數量)",
           "project_name": "garage-system",
           "project_id": "qxxegmvwtndoosqrhyar",
           "confirmed": true,
-          "key_tables": ["job_orders", "appointments", "invoice_summary", "daily_cash_reports", "service_history", "purchase_orders"]
-        },
-        {
-          "label": "BC (Business Central ERP)",
-          "project_name": "Retail Dashboard (bc_* 表) + garage-system (bc_items_mirror, bc_item_ledger)",
-          "project_id": "myrangmxyjamsupbxbba",
-          "confirmed": true,
-          "key_tables": ["bc_sales_invoices", "bc_invoice_lines", "bc_inventory", "bc_purchase_invoices"],
-          "note": "BC = Microsoft Dynamics 365 Business Central。bc_sales_invoices 註解為『BC CARSHOP 維度銷售發票』。"
+          "key_tables": ["appointments", "job_orders"],
+          "do_not_use_for_revenue": ["invoice_summary (停在2026-04-08)", "daily_cash_reports (空表)", "job_orders.final_price (全NULL)"],
+          "note": "見 /DATA-GAPS.md。此專案的 invoice_summary/daily_cash_reports/final_price 未維護，營收一律取 BC GARAGE 維度。"
         }
       ],
       "metrics": ["當日營業額", "訂單/工單數", "熱賣商品/熱門服務", "與前一日及上週同日比較", "資料新鮮度 (etl_sync_log / bc_sync_state)"],

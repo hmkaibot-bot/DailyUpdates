@@ -24,11 +24,14 @@ daily-dashboard/
 
 ## 資料來源對應（頭盔王）
 
-| 業務線 | Supabase 專案 | project_id |
-|--------|---------------|-----------|
+| 業務線 | 權威來源 | project_id |
+|--------|----------|-----------|
 | 零售（Helmet King Shopify） | Retail Dashboard | `myrangmxyjamsupbxbba` |
-| 賣車 / 車房（Helmet King + 26King） | garage-system | `qxxegmvwtndoosqrhyar` |
-| BC（Business Central ERP） | Retail Dashboard 的 `bc_*` 表 | `myrangmxyjamsupbxbba` |
+| 車房營收（Helmet King + 26King） | Retail Dashboard 的 BC GARAGE 維度（`bc_sales_invoices`） | `myrangmxyjamsupbxbba` |
+| 車房營運（預約/工單） | garage-system | `qxxegmvwtndoosqrhyar` |
+
+> 📋 車房營收一律取 **BC GARAGE 維度**；garage-system 的 `invoice_summary` / `daily_cash_reports` /
+> `job_orders.final_price` 目前未維護，**勿用於營收**。完整調查見 **`DATA-GAPS.md`**。
 
 ## 怎麼用
 

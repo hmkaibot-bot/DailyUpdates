@@ -4,13 +4,15 @@
 
 ## 三條業務線（來源 = Supabase）
 
-| 業務線 | Supabase 專案 | project_id | 重點表 |
-|--------|---------------|-----------|--------|
+| 業務線 | 權威來源 | project_id | 重點表 |
+|--------|----------|-----------|--------|
 | 零售（Helmet King Shopify） | Retail Dashboard | `myrangmxyjamsupbxbba` | `shopify_orders`, `shopify_order_lines`, `shopify_products`, `meta_ad_insights` |
-| 賣車 / 車房（Helmet King + 26King） | garage-system | `qxxegmvwtndoosqrhyar` | `job_orders`, `appointments`, `invoice_summary`, `daily_cash_reports`, `service_history` |
-| BC（Business Central ERP） | Retail Dashboard 的 `bc_*` 表 | `myrangmxyjamsupbxbba` | `bc_sales_invoices`（BC CARSHOP 維度）, `bc_invoice_lines`, `bc_inventory` |
+| **車房營收（Helmet King + 26King）** | **Retail Dashboard 的 BC GARAGE 維度** | `myrangmxyjamsupbxbba` | **`bc_sales_invoices` WHERE `dimension1_code='GARAGE'`**, `bc_invoice_lines` |
+| 車房營運（預約/工單） | garage-system | `qxxegmvwtndoosqrhyar` | `appointments`, `job_orders`（只用狀態/數量，**不用 final_price**） |
 
-> ⚠️ 「賣車 dashboard」與「BC」的精確對應仍待使用者最終確認；目前依資料表結構推斷。
+> ⚠️ **車房營收一律取 BC GARAGE 維度**，不要用 garage-system 的 `invoice_summary`（停在 2026-04-08）、
+> `daily_cash_reports`（空表）、或 `job_orders.final_price`（全 NULL）——詳見 `/DATA-GAPS.md` 調查。
+> 這三張是車房 app 的營運表、目前未維護，拿來算營收會嚴重失真。
 
 ## 做法
 
@@ -37,18 +39,22 @@ WHERE created_at >= current_date - interval '8 days'
 GROUP BY 1 ORDER BY 1 DESC;
 ```
 
-車房當日工單（garage-system）：
+車房當日營收（權威：Retail Dashboard，BC GARAGE 維度）：
 ```sql
-SELECT count(*) AS job_orders_today
-FROM job_orders
-WHERE created_at::date = current_date;
+SELECT invoice_date AS d, count(*) AS invoices, sum(total_amount_incl_tax) AS revenue
+FROM bc_sales_invoices
+WHERE dimension1_code = 'GARAGE' AND number LIKE 'SI-%' AND status <> 'Canceled'
+  AND invoice_date >= current_date - interval '8 days'
+GROUP BY 1 ORDER BY 1 DESC;
 ```
 
-BC 當日銷售（Retail Dashboard）：
+車房當日營運（garage-system，只取數量/狀態與預約）：
 ```sql
-SELECT count(*) AS invoices, sum(amount) AS total
-FROM bc_sales_invoices
-WHERE posting_date = current_date;
+-- 今日預約
+SELECT count(*) FILTER (WHERE scheduled_at::date = current_date) AS today_appts
+FROM appointments;
+-- 今日新工單（數量，不用 final_price）
+SELECT count(*) AS jobs_today FROM job_orders WHERE created_at::date = current_date;
 ```
 
 ## 輸出格式
