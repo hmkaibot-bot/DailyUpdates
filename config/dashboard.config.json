@@ -18,6 +18,24 @@
     "note": "發到私人頻道 #每日匯報 (C0BDLSKM2FQ)。若頻道發送失敗，fallback 發 DM 給本人。cron/觸發器自動執行用 direct；人手測試可改 draft。"
   },
 
+  "monthly_targets": {
+    "_comment": "每月目標。零售/車房 = 營業額(revenue)；賣車/租車 = 純利(net profit)。追數一律以『最後完整日』為準。",
+    "retail":        { "basis": "revenue",    "amount": 1500000 },
+    "garage":        { "basis": "revenue",    "amount": 400000 },
+    "vehicle_sales": { "basis": "net_profit", "amount": 250000 },
+    "rental":        { "basis": "net_profit", "amount": 20000 },
+    "pacing_rule": "LCD=最後完整日=current_date-1; elapsed=day-of(LCD); days_in_month=當月日數; 達成%=MTD/目標; 應達%=elapsed/days_in_month; 距標=目標-MTD; 餘下日=days_in_month-elapsed; 每日需追=距標/餘下日; 預估埋月=MTD/elapsed*days_in_month。"
+  },
+
+  "group_profit": {
+    "_comment": "集團總利潤 = 各組利潤相加。⚠️ 零售/車房 DB 無成本(COGS)，無法算真實利潤，故用『毛利率假設』× 營業額估算；賣車/租車用真實淨利。毛利率為暫定預設，請老闆提供實際值後改這裡。",
+    "retail":        { "method": "margin_assumption", "gross_margin_pct": 35, "source": "Shopify 營業額 × 毛利率(無COGS需假設)" },
+    "garage":        { "method": "margin_assumption", "gross_margin_pct": 45, "source": "BC GARAGE 營業額 × 毛利率(無COGS需假設)" },
+    "vehicle_sales": { "method": "actual", "source": "已實現純利(售價-成本/寄賣佣金)" },
+    "rental":        { "method": "actual", "source": "total_fee - company_expense" },
+    "show_caveat": true
+  },
+
   "sections": {
     "github_trending": {
       "enabled": true,

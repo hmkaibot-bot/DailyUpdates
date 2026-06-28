@@ -1,29 +1,47 @@
 # 區塊：🏍️ 賣車（Vehicle Sales）
 
-高單價、低頻、有庫存與毛利、分「買斷 / 寄賣 / 新車(dealer order)」三種——看**台數 + 利潤 + 在庫漏斗**，不看單日流水。
+高單價、低頻、有庫存與毛利、分三種收入模型——看**台數 + 純利 + pipeline + 在庫漏斗**，不看單日流水。
 
-**來源（權威）**：`26king-trading`（`kpvakfbxpachnotjvnyu`）的 `vehicles`（成交主表）、`dealer_orders`（新車）、`payment_records`（現金流）。
-> ⚠️ BC `CARSHOP` 維度已**停在 2026-02-11**，僅作歷史，**不用作當前數字**。
+**來源（權威）**：`26king-trading`（`kpvakfbxpachnotjvnyu`）：`vehicles`（成交主表）、`dealer_orders`（新車）、`payment_records`（現金流）。
+> ⚠️ BC `CARSHOP` 維度已**停在 2026-02-11**，僅歷史，不用作當前數字。
 
-## 已確認對齊（與老闆口徑一致）
-- **今月成交台數** = `vehicles` where `sold_at` 落在本月 → 已驗證 = 25 ✅
-- **客人預留** = `vehicles` where `lifecycle_status='reserved'` → 已驗證 = 4 ✅
-- 成交按 `acquisition_type` 拆：買斷 buyback / 新車 dealer_order / 寄賣 consignment。
+## 已界定算法（經老闆確認）
 
-## ⏳ 待老闆確認的兩個金額口徑（不要猜）
-老闆要看：**已實現利潤** 與 **本月開單**。系統內無對應 view/function，需照前端算法定義：
-- `已實現利潤`：哪些單算「已實現」（已找尾數 `customer_balance_paid_date`？已過戶 `transfer_date`？），利潤 = 售價 − 哪些成本（`total_cost`？`purchase_price+prep_cost`？是否含 `licence_fee`/`first_reg_tax`？），範圍（本月 or 累計）。
-- `本月開單`：開單 = 本月開出發票之單，是利潤還是金額，哪個子集（新車 dealer_order？訂金？開單未收？）。
-> 參考：本月 sold_at 25 台「售價−total_cost」毛利 = $233,722（買斷13=120,322 / 新車10=79,800 / 寄賣2=33,600）；已找尾數(10 台)利潤 = $122,672。皆 ≠ 老闆數字 → 待定義後改這裡的 SQL。
+**已實現純利（已成交）** —— 認列以**成交日 `sold_at`** 為準（上月下訂、本月成交＝算本月）。本月至今 = `sold_at` ∈ [月初, 最後完整日]。
+- 買斷 (buyback) / 新車 (dealer_order)：純利 = `coalesce(final_sale_price,actual_sale_price)` − `total_cost`
+- 寄賣 (consignment)：**只計佣金** = `coalesce(consignment_sale_price,final_sale_price)` × `consignment_commission_rate/100`（車非我們所有，佣金才是真利潤）
 
-## 在庫漏斗（lifecycle_status）
-`pending_intake / pending_prep / pending_listing / listed / listed_new / reserved / transferring / sold / completed`
+**本月開單（pipeline / 潛在純利）** —— 本月**下訂但未成交**之單，成交時才轉「已實現」；本月下訂、下月成交則歸下月。
+- 條件：`sold_at IS NULL` 且 (`lifecycle_status='reserved'` 或 `sale_status='deposit_paid'`)，且 `coalesce(reserved_at,customer_deposit_date)` ∈ 本月。
+- 純利用同上公式（未成交用 `target_sale_price`/`estimated_sale_price` 估）。
+
+**客人預留** = `vehicles` where `lifecycle_status='reserved'`。
+
+## 主查詢（26king-trading）
+```sql
+WITH lcd AS (SELECT (current_date-1) d, date_trunc('month',current_date)::date ms)
+SELECT
+ (SELECT count(*) FROM vehicles,lcd WHERE sold_at::date BETWEEN ms AND d) AS sold_cnt,
+ (SELECT round(sum(CASE WHEN acquisition_type='consignment'
+        THEN coalesce(consignment_sale_price,final_sale_price,actual_sale_price,0)*coalesce(consignment_commission_rate,0)/100.0
+        ELSE coalesce(final_sale_price,actual_sale_price,0)-coalesce(total_cost,0) END))
+   FROM vehicles,lcd WHERE sold_at::date BETWEEN ms AND d) AS realized_profit,
+ (SELECT round(sum(CASE WHEN acquisition_type='consignment'
+        THEN coalesce(consignment_sale_price,final_sale_price,target_sale_price,0)*coalesce(consignment_commission_rate,0)/100.0
+        ELSE coalesce(final_sale_price,target_sale_price,estimated_sale_price,0)-coalesce(total_cost,0) END))
+   FROM vehicles,lcd WHERE sold_at IS NULL AND (lifecycle_status='reserved' OR sale_status='deposit_paid')
+        AND coalesce(reserved_at::date,customer_deposit_date::date) BETWEEN ms AND d) AS pipeline_profit,
+ (SELECT count(*) FROM vehicles WHERE lifecycle_status='reserved') AS reserved_now;
+```
+驗證值（2026-06，至 6/27）：成交 24 台、已實現純利 $196,824（買斷+新車 191,322＋寄賣佣金 5,502）、pipeline $34,650（3 台）、預留 4。
+
+## 月目標 + 追數
+目標：**純利 $250,000/月**（見 config `monthly_targets.vehicle_sales`）。套用通用追數公式（見 `05-helmet-king.md`）。
+
+## 在庫漏斗
 ```sql
 SELECT lifecycle_status, count(*) FROM vehicles WHERE coalesce(is_archived,false)=false GROUP BY 1 ORDER BY 2 DESC;
 ```
 
-## 輸出（Slack 行，金額待口徑確認後填）
-`🏍️ 賣車：本月成交 25 台 ｜ 已實現利潤 $208,564 ｜ 本月開單 $69,650 ｜ 客人預留 4 ｜ 在庫漏斗(待整備/已上架/已留訂)`
-
-## 降級
-查詢失敗 → 標「⚠️ 今日無法取得」，不中斷整份報告。
+## 輸出（Slack 行）
+`🏍️ 賣車：本月成交 {台} ｜ 已實現純利 ${realized} / 目標 25萬（{%}）距標 ${gap}，餘 {n} 日需 ${/日} ｜ 開單 pipeline ${pipeline} ｜ 預留 4`

@@ -36,8 +36,11 @@ SELECT round(100.0 * (
 SELECT round(sum(deposit_amount)) deposits_held FROM admin_bookings WHERE status='confirmed';
 ```
 
+## 月目標 + 追數
+目標：**純利 $20,000/月**（config `monthly_targets.rental`）。淨利 = `total_fee − company_expense`（暫定；如有其他成本再加）。套用通用追數公式（見 `05-helmet-king.md`）。驗證值（至 6/27）：MTD 淨利 $3,640（7 單）→ 達成 18%、嚴重落後（受測試資料影響，需先清洗）。
+
 ## 輸出（Slack 行）
-`🛵 租車：MTD $X（N 單）｜ 車隊使用率 Y%（5 架）｜ 今日取車 A／還車 B ｜ 押金在手 $Z`
+`🛵 租車：MTD 淨利 $X / 目標 2萬（{%}）｜ 車隊使用率 Y%（5 架）｜ 今日取車 A／還車 B ｜ 押金在手 $Z`
 
 ## 降級
 查詢失敗或全為測試資料 → 標「⚠️ 租車資料待清洗」，不中斷整份報告。

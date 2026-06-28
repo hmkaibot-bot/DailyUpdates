@@ -98,6 +98,47 @@ SELECT count(*) AS jobs_today FROM job_orders WHERE created_at::date = current_d
 ```
 > 預約是前瞻資訊，用 current_date 是對的；營收用 last_complete_day。
 
+## 月目標追數（所有四線）
+
+設定見 config `monthly_targets`（零售 150萬營 / 車房 40萬營 / 賣車 25萬純利 / 租車 2萬純利）。
+通用公式（以最後完整日 LCD 計）：
+```
+LCD          = current_date - 1
+elapsed      = day-of-month(LCD)                 例：LCD=15號 → elapsed=15
+days_in_month= 當月總日數                         例：6月=30
+達成%        = MTD ÷ 目標
+應達%        = elapsed ÷ days_in_month            例：15/30 = 50%
+距標         = 目標 − MTD
+餘下日       = days_in_month − elapsed
+每日需追     = 距標 ÷ 餘下日
+預估埋月     = MTD ÷ elapsed × days_in_month
+```
+- 零售/車房 用「MTD 營業額」對營業額目標；賣車用「已實現純利」對純利目標；租車用「淨利」對純利目標。
+- 落後（達成% < 應達%）以 ⚠️ 標示。
+
+## 集團總利潤（所有部組相加）
+
+設定見 config `group_profit`。**注意：零售/車房 DB 無成本(COGS)**，故用毛利率假設估算；賣車/租車為真實淨利。
+```
+集團總利潤(MTD) ≈ 零售營業額×零售毛利率(假設)
+                + 車房營業額×車房毛利率(假設)
+                + 賣車已實現純利(真實)
+                + 租車淨利(真實)
+```
+> 必附一句 caveat：「零售/車房利潤為毛利率估算（DB 無 COGS）」，避免誤當精算。毛利率待老闆提供實際值。
+
+## 輸出格式（集團追數版）
+```
+🪖 集團生意（資料截至 {LCD}｜本月 {elapsed}/{days_in_month} 日）
+線別            MTD          目標     達成%   距標      餘{n}日需/日
+零售(營)        $1.21M       $1.5M    81%     $289k     $96k
+車房(營)        $306k        $400k    76%     $94k      $31k
+賣車(純利)      $197k        $250k    79%     $53k      $18k
+租車(純利)      $3.6k        $20k     18%     $16k      $5.5k
+— 集團總利潤(估)  $XXX,XXX     （零售/車房為毛利率估算）
+👉 跨線洞察（哪條最落後、最該追）
+```
+
 ## 降級
 
 任一業務線查詢失敗 → 該行標「⚠️ 今日無法取得（原因）」，其餘照常輸出。
