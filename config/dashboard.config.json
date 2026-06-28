@@ -40,8 +40,10 @@
       "project_id": "kpvakfbxpachnotjvnyu",
       "primary_source": "CostGo 續保 costgo_renewal_cases（主要保險業務，活躍至今）：status in (completed,legacy_completed)，按 payment_received_at/renewal_effective_date。本月(6月)=43 宗、gross_premium $62,725、renewal_price $50,560。",
       "minor_source": "insurance_policies（直接新單，量小且停在 2026-04，可忽略）",
-      "profit_gap": "⚠️ CostGo 的 sell_amount/cost_amount 全未填 → 純利/佣金算不出。需老闆給佣金基準（例：佣金 = gross_premium × X%，或 = renewal_price − cost）後才能計入集團 GP。",
-      "report_now": "可先報量：續保宗數 + gross_premium（報數，無 target）。",
+      "profit_method": "gross_premium × commission_pct（sell/cost 未填，改用佣金率估算）",
+      "commission_pct": 15,
+      "profit_formula": "round(sum(gross_premium) FILTER (status in completed/legacy_completed, 本月) × 0.15)",
+      "note_assumption": "老闆給定 renew 約 15% 利潤；以 gross_premium 為基準估算，可改 commission_pct 或改用 renewal_price 為基準。6月估≈$9,409。",
       "no_target": true
     },
     "monthly_target": 1000000,
