@@ -9,12 +9,13 @@
 
   "delivery": {
     "platform": "slack",
-    "mode": "dm",
-    "channel_id": "U02J06REWP5",
-    "channel_name": "(DM to self)",
+    "mode": "channel",
+    "channel_id": "C0BDLSKM2FQ",
+    "channel_name": "每日匯報",
+    "fallback_dm_user_id": "U02J06REWP5",
     "send_mode": "direct",
     "language": "zh-Hant",
-    "note": "目前發 DM 給本人 (channel_id = 自己的 user_id)。日後若要改發到頻道，把 mode 改 'channel' 並填頻道 channel_id 即可。cron 自動執行用 direct（直接發），人手測試可改成 draft。"
+    "note": "發到私人頻道 #每日匯報 (C0BDLSKM2FQ)。若頻道發送失敗，fallback 發 DM 給本人。cron/觸發器自動執行用 direct；人手測試可改 draft。"
   },
 
   "sections": {
