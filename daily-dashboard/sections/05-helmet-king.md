@@ -14,6 +14,14 @@
 > `daily_cash_reports`（空表）、或 `job_orders.final_price`（全 NULL）——詳見 `/DATA-GAPS.md` 調查。
 > 這三張是車房 app 的營運表、目前未維護，拿來算營收會嚴重失真。
 
+## ⏰ 重要：以「最後一個完整日」為準
+
+dashboard 在早上跑，**當日（current_date）尚未結束，數字不準**。所以：
+- 營收與一切比較，**一律取「最後一個完整日」** = 最近一個 `< current_date` 且有資料的日子（通常是昨天）。
+- **今日（current_date）數字不要當績效**：可選擇性附一行「今日進行中 $X（未結算，僅參考）」，但**不得**用於 ▲▼ 比較。
+- 比較基準：last_complete_day vs 前一個有資料日、vs 上週同一天（−7 天）。
+- 報表標題的「資料截至」= last_complete_day（不是 current_date）。
+
 ## 做法
 
 1. **先驗證欄位**：每張表第一次使用前，用
@@ -29,22 +37,25 @@
 
 ## 範例查詢（執行前先用 information_schema 核對欄位名）
 
-零售當日營業額（Retail Dashboard）：
+零售營業額（最後一個完整日為準，排除今日 current_date）：
 ```sql
-SELECT date_trunc('day', created_at) AS d,
-       count(*) AS orders,
-       sum(total_price) AS revenue
+SELECT created_at::date AS d, count(*) AS orders, sum(total_price) AS revenue
 FROM shopify_orders
-WHERE created_at >= current_date - interval '8 days'
+WHERE cancelled_at IS NULL
+  AND created_at::date < current_date            -- 只取已結束的日子
+  AND created_at >= current_date - interval '9 days'
 GROUP BY 1 ORDER BY 1 DESC;
+-- 取第 1 列 = last_complete_day；第 2 列 = 前一日；找 d = last_complete_day - 7 = 上週同日。
+-- 今日(current_date)若要附參考，另跑一條並標「未結算」，不參與比較。
 ```
 
-車房當日營收（權威：Retail Dashboard，BC GARAGE 維度）：
+車房營收（權威：BC GARAGE 維度，最後一個完整日為準，排除今日）：
 ```sql
 SELECT invoice_date AS d, count(*) AS invoices, sum(total_amount_incl_tax) AS revenue
 FROM bc_sales_invoices
 WHERE dimension1_code = 'GARAGE' AND number LIKE 'SI-%' AND status <> 'Canceled'
-  AND invoice_date >= current_date - interval '8 days'
+  AND invoice_date < current_date                -- 只取已結束的日子
+  AND invoice_date >= current_date - interval '9 days'
 GROUP BY 1 ORDER BY 1 DESC;
 ```
 
@@ -59,13 +70,16 @@ SELECT count(*) AS jobs_today FROM job_orders WHERE created_at::date = current_d
 
 ## 輸出格式
 
+「資料截至」= **last_complete_day**（最後一個完整日，非今日）。
 ```
-🪖 頭盔王生意報表（資料截至 YYYY-MM-DD）
-• 零售：$X（N 單）　▲/▼ vs 昨日 Y%　｜ Top: 商品A
-• 車房：N 張工單　今日預約 M 個　現金日結 $Z
-• BC：$X（N 張發票）
-👉 一句洞察 / 提醒（例如：零售連兩日下滑，建議檢查廣告投放）
+🪖 頭盔王生意報表（資料截至 {last_complete_day}）
+• 零售：$X（N 單）　▲/▼ vs 前一日　▲/▼ vs 上週同日　｜ Top: 商品A
+• 車房 (BC GARAGE)：$X（N 張發票）
+• 車房營運：今日預約 M 個 ｜ 未來預約 K 個（前瞻，可用今日）
+• （選填）今日進行中：零售 $Y — _未結算，僅參考_
+👉 一句洞察（例如：零售單日走弱屬波動 / 連跌兩日建議查廣告）
 ```
+> 預約是前瞻資訊，用 current_date 是對的；營收用 last_complete_day。
 
 ## 降級
 
