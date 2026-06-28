@@ -4,7 +4,9 @@
   "schedule": {
     "time_local": "09:30",
     "timezone": "Asia/Hong_Kong",
-    "frequency": "daily"
+    "frequency": "daily",
+    "mode": "morning_report_previous_day",
+    "note": "早上 09:30 出晨報，營收/追數一律報『最後完整日』(昨日)。已確認採此模式。"
   },
 
   "delivery": {
@@ -20,7 +22,7 @@
 
   "monthly_targets": {
     "_comment": "每月目標。零售/車房 = 營業額(revenue)；賣車/租車 = 純利(net profit)。追數一律以『最後完整日』為準。",
-    "retail":        { "basis": "revenue",    "amount": 1500000 },
+    "retail":        { "basis": "revenue",    "amount": 1400000 },
     "garage":        { "basis": "revenue",    "amount": 400000 },
     "vehicle_sales": { "basis": "net_profit", "amount": 250000 },
     "rental":        { "basis": "net_profit", "amount": 20000 },
@@ -29,10 +31,19 @@
 
   "group_profit": {
     "_comment": "集團總利潤 = 各組利潤相加。⚠️ 零售/車房 DB 無成本(COGS)，無法算真實利潤，故用『毛利率假設』× 營業額估算；賣車/租車用真實淨利。毛利率為暫定預設，請老闆提供實際值後改這裡。",
-    "retail":        { "method": "margin_assumption", "gross_margin_pct": 35, "source": "Shopify 營業額 × 毛利率(無COGS需假設)" },
-    "garage":        { "method": "margin_assumption", "gross_margin_pct": 45, "source": "BC GARAGE 營業額 × 毛利率(無COGS需假設)" },
+    "retail":        { "method": "margin_assumption", "gross_margin_pct": 34, "source": "Shopify 營業額 × 毛利率(無COGS需假設)" },
+    "garage":        { "method": "margin_assumption", "gross_margin_pct": 48, "source": "BC GARAGE 營業額 × 毛利率(無COGS需假設)" },
     "vehicle_sales": { "method": "actual", "source": "已實現純利(售價-成本/寄賣佣金)" },
     "rental":        { "method": "actual", "source": "total_fee - company_expense" },
+    "insurance": {
+      "method": "actual",
+      "project_id": "kpvakfbxpachnotjvnyu",
+      "source": "保險利潤 = insurance_monthly_summary('YYYY-MM').profit_total（用 insurance_policies.profit, 按 effective_date）+ CostGo 續保毛利(sell_amount-cost_amount)",
+      "data_gap": "⚠️ insurance_policies 最後 effective_date=2026-04-22（停更~2個月，6月=$0）；costgo_renewal_cases 342宗 sell/cost 全未填(算不出佣金)。需先補資料才有真實保險收入。全期 insurance_policies 利潤=$108,373。",
+      "no_target": true
+    },
+    "monthly_target": 1000000,
+    "target_note": "集團總 GP 月目標 = HK$1,000,000（零售/車房毛利估 + 賣車/租車淨利 + 保險）。保險目前因資料停更計 $0。",
     "show_caveat": true
   },
 
@@ -129,6 +140,14 @@
           "key_tables": ["admin_bookings", "fleet_vehicles", "price_tiers"],
           "metrics": ["MTD 收入(total_fee)", "車隊使用率(在役5架)", "今日取/還車", "押金在手"],
           "data_quality_warning": "admin_bookings 有未來日期(8-9月)→ 疑測試/種子資料，需先清洗"
+        },
+        {
+          "label": "旅行團 (Tour) — 報數，無 target",
+          "project_name": "TODO_CONFIRM_SOURCE",
+          "project_id": "TODO",
+          "confirmed": false,
+          "no_target": true,
+          "note": "已搜 BC bc_sales_invoices/bc_invoice_lines（dimension1=GARAGE/CARSHOP、dimension2 空、客戶名與品項描述均無 tour/旅/團）找不到旅行團收入流。待老闆指明來源（哪個系統/客戶/帳/平台或如何辨識）。"
         }
       ],
       "metrics": ["最後完整日營業額（排除今日）", "MTD 本月至今 + 上月同期比較", "訂單/工單數", "vs 前一日 + vs 上週同日", "今日預約（前瞻）"],
