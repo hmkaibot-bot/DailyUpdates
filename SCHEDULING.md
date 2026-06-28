@@ -6,19 +6,28 @@
 
 ---
 
-## ✅ 方案 A（最推薦）：Claude Code web 的「排程觸發器 / Schedule」
+## ✅ 方案 A（已採用）：Claude Code web 的「排程觸發器 / Schedule」
 
-這是最省事、且能保留 Slack / Supabase / GitHub 等 MCP 連線授權的做法 —— 因為觸發器會用**這個環境**重新開一個 session，MCP 已經配置好。
+最省事、且保留 Slack / Supabase / GitHub 等 MCP 授權 —— 觸發器用**這個環境**重新開 session，MCP 與 `.claude/settings.json` 的 always-allow 都已就緒，會自動跑完並發送、不需人手批准。
 
-設定步驟（在 Claude Code 網頁端操作）：
-1. 進入這個專案 / 環境的設定，找到 **Triggers / Schedule（排程）**。
-2. 新增一個排程觸發器：
-   - 頻率：每天 **09:30**，時區 **Asia/Hong_Kong**
-   - 指向分支：`claude/daily-dashboard-slack-yzffu9`（或合併後的主分支）
-   - 啟動提示（prompt）：`/daily-dashboard`
-3. 儲存。之後每天 09:30 會自動開 session 跑 skill 並發送。
+**設定步驟（網頁端，約 3 分鐘）：**
+1. 在 Claude Code 網頁端開啟這個專案 / 環境，找 **Schedule / Triggers（排程觸發器）**。
+2. 新增排程：
+   - 頻率：**每天 09:30**，時區 **Asia/Hong_Kong**
+   - 分支：`claude/daily-dashboard-slack-yzffu9`（或先 merge 到 main 再指 main）
+   - 啟動 prompt（建議用明確版）：
+     ```
+     執行 /daily-dashboard：讀 config/dashboard.config.json，產生六區塊（GitHub熱門 / 生產力 / Skill工作流 / 停滯工作 / 集團生意(零售·車房·賣車·租車·保險·旅行團 + 月目標追數 + 集團GP) / 社群熱門），營收報最後完整日，發送到 Slack #每日匯報 (C0BDLSKM2FQ)。任一區塊失敗降級不中斷。
+     ```
+3. 儲存。之後每天 09:30 自動送到 #每日匯報。
+
+**前置確認（都已完成）：**
+- skill `.claude/skills/daily-dashboard/` 已在分支上 ✅
+- `.claude/settings.json` always-allow 已設（自動執行不卡權限）✅
+- 發送目標 = #每日匯報 `C0BDLSKM2FQ`（config delivery）✅
 
 > 文件：https://code.claude.com/docs/en/claude-code-on-the-web （triggers / schedules 章節）
+> 注意：觸發器跑哪條分支就讀哪條的 skill/config。若想用 main，先把本分支 merge 入 main。
 
 ---
 
