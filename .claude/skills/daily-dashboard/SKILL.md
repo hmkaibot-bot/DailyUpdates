@@ -27,8 +27,10 @@ description: 產生頭盔王每日 dashboard 並發送到 Slack daily 頻道。�
 | 2 | 🚀 生產力建議 | AI 綜合產生 | `sections/02-productivity.md` |
 | 3 | 🛠️ Skill 工作流程 | 輪播指南 | `sections/03-skill-workflow.md` |
 | 4 | ⏳ 停滯工作提醒 | GitHub issues / PR | `sections/04-stalled-work.md` |
-| 5 | 🪖 頭盔王生意報表 | Supabase（零售 / 賣車 / BC） | `sections/05-helmet-king.md` |
+| 5 | 🪖 集團生意報表 | Supabase | `sections/05-helmet-king.md`（零售/車房）＋ `07-vehicle-sales.md`（賣車）＋ `08-rental.md`（租車） |
 | 6 | 💬 社群熱門（AI + 電單車） | WebSearch | `sections/06-community-trends.md` |
+
+> 區塊 5 是「集團生意」四線合一：零售 / 車房 / 賣車 / 租車。每線「昨日或本月 + 對比」，見各自 section。
 
 ## 原則
 

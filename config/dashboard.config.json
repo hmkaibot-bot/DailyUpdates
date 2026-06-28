@@ -90,6 +90,27 @@
           "key_tables": ["appointments", "job_orders"],
           "do_not_use_for_revenue": ["invoice_summary (停在2026-04-08)", "daily_cash_reports (空表)", "job_orders.final_price (全NULL)"],
           "note": "見 /DATA-GAPS.md。此專案的 invoice_summary/daily_cash_reports/final_price 未維護，營收一律取 BC GARAGE 維度。"
+        },
+        {
+          "label": "賣車 (Vehicle Sales — 26King)",
+          "project_name": "26king-trading",
+          "project_id": "kpvakfbxpachnotjvnyu",
+          "confirmed": true,
+          "section": "07-vehicle-sales",
+          "key_tables": ["vehicles", "dealer_orders", "payment_records"],
+          "metrics_confirmed": {"今月成交台數": "vehicles sold_at 本月 = 25", "客人預留": "lifecycle_status='reserved' = 4"},
+          "metrics_pending_definition": ["已實現利潤 (目標 $208,564)", "本月開單 (目標 $69,650)"],
+          "do_not_use": "BC CARSHOP 維度（停在 2026-02-11，僅歷史）"
+        },
+        {
+          "label": "租車 (Rental)",
+          "project_name": "rental project",
+          "project_id": "xhyhfrxhvumskqzsoahk",
+          "confirmed": true,
+          "section": "08-rental",
+          "key_tables": ["admin_bookings", "fleet_vehicles", "price_tiers"],
+          "metrics": ["MTD 收入(total_fee)", "車隊使用率(在役5架)", "今日取/還車", "押金在手"],
+          "data_quality_warning": "admin_bookings 有未來日期(8-9月)→ 疑測試/種子資料，需先清洗"
         }
       ],
       "metrics": ["最後完整日營業額（排除今日）", "MTD 本月至今 + 上月同期比較", "訂單/工單數", "vs 前一日 + vs 上週同日", "今日預約（前瞻）"],
