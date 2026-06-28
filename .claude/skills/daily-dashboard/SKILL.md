@@ -19,18 +19,23 @@ description: 產生頭盔王每日 dashboard 並發送到 Slack daily 頻道。�
    - **預設先建草稿（`slack_send_message_draft`）還是直接發（`slack_send_message`）？** cron 自動執行時直接發；人手測試時先發草稿讓使用者過目。
 5. 把當日摘要（日期 + 各區塊一句話結論）寫回 Supabase `PM` 專案的 `daily_dashboard_log` 表（若不存在則略過，不報錯），方便累積歷史與隔日「停滯工作」比對。
 
-## 五大區塊
+## 區塊總覽
 
 | # | 區塊 | 來源 | 說明檔 |
 |---|------|------|--------|
-| 1 | 🔥 GitHub 熱門項目 | 網頁 github.com/trending | `sections/01-github-trending.md` |
-| 2 | 🚀 生產力建議 | AI 綜合產生 | `sections/02-productivity.md` |
-| 3 | 🛠️ Skill 工作流程 | 輪播指南 | `sections/03-skill-workflow.md` |
-| 4 | ⏳ 停滯工作提醒 | GitHub issues / PR | `sections/04-stalled-work.md` |
-| 5 | 🪖 集團生意報表 | Supabase | `sections/05-helmet-king.md`（零售/車房）＋ `07-vehicle-sales.md`（賣車）＋ `08-rental.md`（租車） |
-| 6 | 💬 社群熱門（AI + 電單車） | WebSearch | `sections/06-community-trends.md` |
+| 1 | 🪖 集團生意報表 + 月目標追數 + 集團總GP | Supabase | `05-helmet-king.md`（零售/車房）＋ `07-vehicle-sales.md`（賣車）＋ `08-rental.md`（租車） |
+| 2 | 💵 現金流 & 應收應付（管理） | Supabase | `09-cashflow-ar-ap.md` |
+| 3 | 📦 賣車庫存健康（管理） | Supabase | `10-inventory-health.md` |
+| 4 | 🚨 例外/風險清單（管理） | Supabase | `11-exceptions.md` |
+| 5 | ⏳ 停滯工作提醒 | GitHub issues / PR | `04-stalled-work.md` |
+| 6 | 🔥 GitHub 熱門項目 | github.com/trending | `01-github-trending.md` |
+| 7 | 💬 社群熱門（AI + 電單車） | WebSearch | `06-community-trends.md` |
+| 8 | 🚀 生產力建議 | AI 綜合產生 | `02-productivity.md` |
+| 9 | 🛠️ Skill 工作流程 | 輪播指南 | `03-skill-workflow.md` |
 
-> 區塊 5 是「集團生意」四線合一：零售 / 車房 / 賣車 / 租車。每線「昨日或本月 + 對比」，見各自 section。
+> 對象 = management。順序由「要決策的數字」到「資訊性」：生意/目標 → 現金 → 庫存 → 例外 → 其餘。
+> 區塊 1 是「集團生意」四線（零售/車房/賣車/租車）+ 保險/旅行團 + 月目標追數 + 集團總 GP。
+> 區塊 2–4 為管理層新增（現金/庫存/例外），詳見各 section 的已驗證 SQL。
 
 ## 原則
 

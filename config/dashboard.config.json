@@ -96,6 +96,28 @@
       "note": "目前 GitHub MCP 權限僅限 hmkaibot-bot/dailyupdates。若要監測更多 repo，需擴大授權範圍後把 repo 加進這個清單。"
     },
 
+    "cashflow_ar_ap": {
+      "enabled": true,
+      "audience": "management",
+      "source": "supabase",
+      "section": "09-cashflow-ar-ap",
+      "note": "賣車現金流(payment_records in/out) + 應付車行(dealer_balance) + 應收(customer_balance 待確認)。車房日結/保險 outstanding 為次要。"
+    },
+    "inventory_health": {
+      "enabled": true,
+      "audience": "management",
+      "source": "supabase",
+      "section": "10-inventory-health",
+      "note": "賣車在庫(26king vehicles)：台數/鎖住資金(total_cost)/車齡>60·90日/平均在庫天數/最舊壓貨清單。"
+    },
+    "exceptions": {
+      "enabled": true,
+      "audience": "management",
+      "source": "supabase",
+      "section": "11-exceptions",
+      "note": "例外清單：蝕本成交/壓貨>90/保險續保到期未跟·逾期/車房滯場/零件逾期/現金差異/資料停更。全部0則『今日無異常』。"
+    },
+
     "helmet_king": {
       "enabled": true,
       "source": "supabase",
