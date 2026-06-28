@@ -59,6 +59,20 @@ WHERE dimension1_code = 'GARAGE' AND number LIKE 'SI-%' AND status <> 'Canceled'
 GROUP BY 1 ORDER BY 1 DESC;
 ```
 
+本月至今 MTD（月初 → 最後完整日，並與上月同期比較）：
+```sql
+WITH b AS (SELECT date_trunc('month',current_date)::date ms,
+                  (date_trunc('month',current_date)-interval '1 month')::date lms,
+                  (current_date - date_trunc('month',current_date)::date) AS days_elapsed)
+SELECT
+  (SELECT round(sum(total_price)) FROM shopify_orders,b WHERE cancelled_at IS NULL AND created_at::date>=ms AND created_at::date<current_date) AS retail_mtd,
+  (SELECT round(sum(total_price)) FROM shopify_orders,b WHERE cancelled_at IS NULL AND created_at::date>=lms AND created_at::date<lms+days_elapsed) AS retail_lastmonth_same,
+  (SELECT round(sum(total_amount_incl_tax)) FROM bc_sales_invoices,b WHERE dimension1_code='GARAGE' AND number LIKE 'SI-%' AND status<>'Canceled' AND invoice_date>=ms AND invoice_date<current_date) AS garage_mtd,
+  (SELECT round(sum(total_amount_incl_tax)) FROM bc_sales_invoices,b WHERE dimension1_code='GARAGE' AND number LIKE 'SI-%' AND status<>'Canceled' AND invoice_date>=lms AND invoice_date<lms+days_elapsed) AS garage_lastmonth_same
+FROM b;
+-- MTD 區間 = [月初, current_date)；上月同期 = [上月初, 上月初+已過天數)，確保同日數可比。
+```
+
 車房當日營運（garage-system，只取數量/狀態與預約）：
 ```sql
 -- 今日預約
@@ -73,10 +87,13 @@ SELECT count(*) AS jobs_today FROM job_orders WHERE created_at::date = current_d
 「資料截至」= **last_complete_day**（最後一個完整日，非今日）。
 ```
 🪖 頭盔王生意報表（資料截至 {last_complete_day}）
-• 零售：$X（N 單）　▲/▼ vs 前一日　▲/▼ vs 上週同日　｜ Top: 商品A
-• 車房 (BC GARAGE)：$X（N 張發票）
-• 車房營運：今日預約 M 個 ｜ 未來預約 K 個（前瞻，可用今日）
-• （選填）今日進行中：零售 $Y — _未結算，僅參考_
+【昨日 / 最後完整日】
+• 零售：$X（N 單）　▲/▼ vs 前一日　▲/▼ vs 上週同日
+• 車房 (BC GARAGE)：$X（N 張發票）　▲/▼ vs 前一日　▲/▼ vs 上週同日
+【本月至今 MTD（{month_start}→{last_complete_day}）】
+• 零售：$X（N 單）　▲/▼ vs 上月同期
+• 車房：$X（N 張）　▲/▼ vs 上月同期
+【營運】今日預約 M ｜ 未來預約 K ｜（選填）今日進行中 $Y _未結算_
 👉 一句洞察（例如：零售單日走弱屬波動 / 連跌兩日建議查廣告）
 ```
 > 預約是前瞻資訊，用 current_date 是對的；營收用 last_complete_day。

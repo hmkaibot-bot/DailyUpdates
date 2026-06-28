@@ -91,7 +91,8 @@
           "note": "見 /DATA-GAPS.md。此專案的 invoice_summary/daily_cash_reports/final_price 未維護，營收一律取 BC GARAGE 維度。"
         }
       ],
-      "metrics": ["當日營業額", "訂單/工單數", "熱賣商品/熱門服務", "與前一日及上週同日比較", "資料新鮮度 (etl_sync_log / bc_sync_state)"],
+      "metrics": ["最後完整日營業額（排除今日）", "MTD 本月至今 + 上月同期比較", "訂單/工單數", "vs 前一日 + vs 上週同日", "今日預約（前瞻）"],
+      "reporting_rule": "營收一律報『最後一個完整日』(< current_date)；今日只作未結算參考、不比較。MTD = [月初, current_date) vs 上月同期同日數。",
       "data_freshness_check": true,
       "candidate_projects_seen": {
         "26king-trading": "kpvakfbxpachnotjvnyu",
