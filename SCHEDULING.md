@@ -6,28 +6,32 @@
 
 ---
 
-## ✅ 方案 A（已採用）：Claude Code web 的「排程觸發器 / Schedule」
+## ✅ 方案 A（已採用）：Claude Code **Routines（例程）**
 
-最省事、且保留 Slack / Supabase / GitHub 等 MCP 授權 —— 觸發器用**這個環境**重新開 session，MCP 與 `.claude/settings.json` 的 always-allow 都已就緒，會自動跑完並發送、不需人手批准。
+功能名稱是 **Routines**，**不在專案設定裡**，而在獨立頁面 **https://claude.ai/code/routines**。
+（CLI 也有 `/schedule`，但在「網頁 session 內」用不到——一律用網頁 Routines 頁。）
 
-**設定步驟（網頁端，約 3 分鐘）：**
-1. 在 Claude Code 網頁端開啟這個專案 / 環境，找 **Schedule / Triggers（排程觸發器）**。
-2. 新增排程：
-   - 頻率：**每天 09:30**，時區 **Asia/Hong_Kong**
-   - 分支：`claude/daily-dashboard-slack-yzffu9`（或先 merge 到 main 再指 main）
-   - 啟動 prompt（建議用明確版）：
-     ```
-     執行 /daily-dashboard：讀 config/dashboard.config.json，產生六區塊（GitHub熱門 / 生產力 / Skill工作流 / 停滯工作 / 集團生意(零售·車房·賣車·租車·保險·旅行團 + 月目標追數 + 集團GP) / 社群熱門），營收報最後完整日，發送到 Slack #每日匯報 (C0BDLSKM2FQ)。任一區塊失敗降級不中斷。
-     ```
-3. 儲存。之後每天 09:30 自動送到 #每日匯報。
+Routine 會在 Anthropic 雲端自動開 session、無權限提示、可用 cloned repo 內的 skill 與你的 connectors（Slack/Supabase 等預設已包含）。
 
-**前置確認（都已完成）：**
-- skill `.claude/skills/daily-dashboard/` 已在分支上 ✅
-- `.claude/settings.json` always-allow 已設（自動執行不卡權限）✅
-- 發送目標 = #每日匯報 `C0BDLSKM2FQ`（config delivery）✅
+### ⚠️ 重要前提：先合併到 main
+Routine **每次 clone 預設分支（main）**。本專案的 skill/config 在 `claude/daily-dashboard-slack-yzffu9`，
+所以**必須先把此分支 merge 入 main**，Routine 才讀得到 `/daily-dashboard`。
 
-> 文件：https://code.claude.com/docs/en/claude-code-on-the-web （triggers / schedules 章節）
-> 注意：觸發器跑哪條分支就讀哪條的 skill/config。若想用 main，先把本分支 merge 入 main。
+### 設定步驟（約 3 分鐘）
+1. 開 **https://claude.ai/code/routines** → **New routine**。
+2. **Name**：頭盔王 Daily Dashboard
+3. **Prompt**（明確版）：
+   ```
+   執行 /daily-dashboard：讀 config/dashboard.config.json，產生六區塊（GitHub熱門 / 生產力 / Skill工作流 / 停滯工作 / 集團生意(零售·車房·賣車·租車·保險·旅行團 + 月目標追數 + 集團GP) / 社群熱門），營收報最後完整日，發送到 Slack #每日匯報 (C0BDLSKM2FQ)。任一區塊失敗降級不中斷。
+   ```
+4. **Repositories**：`hmkaibot-bot/dailyupdates`（已 merge 到 main 的前提下）
+5. **Environment**：Default（Trusted 網路即可；Slack/Supabase 走 connector 經 Anthropic，免加白名單）
+6. **Trigger → Schedule**：選 **Daily**，時間 **09:30**（你的本地時區，系統自動換算）
+7. **Connectors**：保留 **Slack** 與 **Supabase**（其餘可移除）
+8. **Create** → 完成。可按 **Run now** 立即試跑一次。
+
+> 文件：https://code.claude.com/docs/en/routines
+> 限制：有每日 routine 執行次數上限、計入訂閱用量；自訂 cron 需用 `/schedule update`（最短間隔 1 小時）。
 
 ---
 
