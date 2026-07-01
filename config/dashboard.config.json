@@ -46,8 +46,15 @@
       "note_assumption": "老闆給定 renew 約 15% 利潤；以 gross_premium 為基準估算，可改 commission_pct 或改用 renewal_price 為基準。6月估≈$9,409。",
       "no_target": true
     },
+    "property_rent": {
+      "method": "fixed_monthly",
+      "monthly_amount": 52000,
+      "into_gp": true,
+      "no_target": true,
+      "note": "租屋收入（收租），每月固定 HK$52,000，當純利計入集團 GP、無 target。若要扣自付租金再調整 monthly_amount 或改為 net。"
+    },
     "monthly_target": 1000000,
-    "target_note": "集團總 GP 月目標 = HK$1,000,000（零售/車房毛利估 + 賣車/租車淨利 + 保險）。保險目前因資料停更計 $0。",
+    "target_note": "集團總 GP 月目標 = HK$1,000,000 = 零售毛利估 + 車房毛利估 + 賣車已實現純利 + 租車淨利 + 保險(保費×15%) + 租屋收入(固定$52,000)。",
     "show_caveat": true
   },
 
