@@ -160,8 +160,10 @@
           "confirmed": true,
           "section": "07-vehicle-sales",
           "key_tables": ["vehicles", "dealer_orders", "payment_records"],
-          "metrics_confirmed": {"今月成交台數": "vehicles sold_at 本月 = 25", "客人預留": "lifecycle_status='reserved' = 4"},
-          "metrics_pending_definition": ["已實現利潤 (目標 $208,564)", "本月開單 (目標 $69,650)"],
+          "metrics_confirmed": {"今月成交台數": "vehicles sold_at 本月", "客人預留": "lifecycle_status='reserved'"},
+          "profit_rule": "毛利 = 買斷/新車(售價-成本) + 寄賣(佣金=consignment_sale_price×rate%)；再減 10% 佣金 = 淨利。",
+          "sales_commission_pct": 10,
+          "net_profit_formula": "賣車淨利 = 毛利 × (1 - 0.10)  ← target($250k) 與集團 GP 皆用此淨利",
           "do_not_use": "BC CARSHOP 維度（停在 2026-02-11，僅歷史）"
         },
         {

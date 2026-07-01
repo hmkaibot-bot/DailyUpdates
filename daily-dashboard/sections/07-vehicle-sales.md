@@ -10,6 +10,7 @@
 **已實現純利（已成交）** —— 認列以**成交日 `sold_at`** 為準（上月下訂、本月成交＝算本月）。本月至今 = `sold_at` ∈ [月初, 最後完整日]。
 - 買斷 (buyback) / 新車 (dealer_order)：純利 = `coalesce(final_sale_price,actual_sale_price)` − `total_cost`
 - 寄賣 (consignment)：**只計佣金** = `coalesce(consignment_sale_price,final_sale_price)` × `consignment_commission_rate/100`（車非我們所有，佣金才是真利潤）
+- **⚠️ 再減 10% 佣金**：以上加總為「毛利」，最後 **淨利 = 毛利 × (1 − 0.10)**（config `sales_commission_pct`）。target($250k) 與集團 GP 皆用**淨利**。
 
 **本月開單（pipeline / 潛在純利）** —— 本月**下訂但未成交**之單，成交時才轉「已實現」；本月下訂、下月成交則歸下月。
 - 條件：`sold_at IS NULL` 且 (`lifecycle_status='reserved'` 或 `sale_status='deposit_paid'`)，且 `coalesce(reserved_at,customer_deposit_date)` ∈ 本月。
@@ -25,7 +26,12 @@ SELECT
  (SELECT round(sum(CASE WHEN acquisition_type='consignment'
         THEN coalesce(consignment_sale_price,final_sale_price,actual_sale_price,0)*coalesce(consignment_commission_rate,0)/100.0
         ELSE coalesce(final_sale_price,actual_sale_price,0)-coalesce(total_cost,0) END))
-   FROM vehicles,lcd WHERE sold_at::date BETWEEN ms AND d) AS realized_profit,
+   FROM vehicles,lcd WHERE sold_at::date BETWEEN ms AND d) AS gross_profit,
+ -- 淨利 = 毛利 × 0.9（減 10% 佣金）→ 這個先入 target 與 GP
+ (SELECT round(0.9 * sum(CASE WHEN acquisition_type='consignment'
+        THEN coalesce(consignment_sale_price,final_sale_price,actual_sale_price,0)*coalesce(consignment_commission_rate,0)/100.0
+        ELSE coalesce(final_sale_price,actual_sale_price,0)-coalesce(total_cost,0) END))
+   FROM vehicles,lcd WHERE sold_at::date BETWEEN ms AND d) AS net_profit,
  (SELECT round(sum(CASE WHEN acquisition_type='consignment'
         THEN coalesce(consignment_sale_price,final_sale_price,target_sale_price,0)*coalesce(consignment_commission_rate,0)/100.0
         ELSE coalesce(final_sale_price,target_sale_price,estimated_sale_price,0)-coalesce(total_cost,0) END))
@@ -33,7 +39,7 @@ SELECT
         AND coalesce(reserved_at::date,customer_deposit_date::date) BETWEEN ms AND d) AS pipeline_profit,
  (SELECT count(*) FROM vehicles WHERE lifecycle_status='reserved') AS reserved_now;
 ```
-驗證值（2026-06，至 6/27）：成交 24 台、已實現純利 $196,824（買斷+新車 191,322＋寄賣佣金 5,502）、pipeline $34,650（3 台）、預留 4。
+驗證值（2026-06，至 6/27，示意）：成交 24 台、毛利 $196,824（買斷+新車 191,322＋寄賣佣金 5,502）→ **淨利 = ×0.9 = $177,142**、pipeline $34,650、預留 4。（實際每日重算）
 
 ## 月目標 + 追數
 目標：**純利 $250,000/月**（見 config `monthly_targets.vehicle_sales`）。套用通用追數公式（見 `05-helmet-king.md`）。
@@ -44,4 +50,4 @@ SELECT lifecycle_status, count(*) FROM vehicles WHERE coalesce(is_archived,false
 ```
 
 ## 輸出（Slack 行）
-`🏍️ 賣車：本月成交 {台} ｜ 已實現純利 ${realized} / 目標 25萬（{%}）距標 ${gap}，餘 {n} 日需 ${/日} ｜ 開單 pipeline ${pipeline} ｜ 預留 4`
+`🏍️ 賣車：本月成交 {台} ｜ 淨利(毛利−10%) ${net} / 目標 25萬（{%}）距標 ${gap}，餘 {n} 日需 ${/日} ｜ 開單 pipeline ${pipeline} ｜ 預留 {n}`
