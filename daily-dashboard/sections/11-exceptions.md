@@ -8,10 +8,14 @@
 ```sql
 WITH lcd AS (SELECT (current_date-1) d, date_trunc('month',current_date)::date ms)
 SELECT
-  -- 蝕本成交（買斷/新車，本月）
+  -- 蝕本成交（買斷/新車，本月）：⚠️ 必須售價非空，否則空白售價會被當 $0 誤報蝕本
   (SELECT count(*) FROM vehicles,lcd WHERE sold_at::date BETWEEN ms AND d
      AND acquisition_type<>'consignment' AND coalesce(total_cost,0)>0
-     AND coalesce(final_sale_price,actual_sale_price,0) < total_cost) AS neg_margin,
+     AND coalesce(final_sale_price,actual_sale_price) IS NOT NULL
+     AND coalesce(final_sale_price,actual_sale_price) < total_cost) AS neg_margin,
+  -- 成交但售價未入（資料缺口，非蝕本）：另開一條提示，唔好混入蝕本
+  (SELECT count(*) FROM vehicles,lcd WHERE sold_at::date BETWEEN ms AND d
+     AND coalesce(final_sale_price,actual_sale_price) IS NULL) AS sold_missing_price,
   -- 壓貨 >90 日
   (SELECT count(*) FROM vehicles WHERE sold_at IS NULL AND coalesce(is_archived,false)=false
      AND lifecycle_status NOT IN ('sold','completed')
@@ -21,7 +25,8 @@ SELECT
      AND coalesce(status,'') NOT IN ('completed','legacy_completed','declined','cancelled')) AS ins_expiring_14d,
   (SELECT count(*) FROM costgo_renewal_cases WHERE expiry_date < current_date
      AND coalesce(status,'') NOT IN ('completed','legacy_completed','declined','cancelled')) AS ins_overdue;
--- 驗證(6/27)：蝕本 0、壓貨>90 0、續保14日內 2、續保逾期 1
+-- 驗證：真蝕本(售價非空且<成本) 0；成交但售價未入 = 2（SUZUKI DR-Z4SM、YAMAHA BW'S X125）→ 屬資料缺口非蝕本
+-- （舊邏輯把售價空白當 $0，會誤報呢兩架為「蝕本 -$49,650 / -$19,000」，已修正）
 ```
 **車房（garage-system `qxxegmvwtndoosqrhyar`）**
 ```sql
@@ -43,7 +48,8 @@ SELECT
 🚨 例外（需今日處理）
 • 保險續保 14 日內到期未跟：2 ｜ 已逾期：1 → 今日致電
 • 賣車壓貨>90日：{k}（若有，點名）
-• 蝕本成交：{k}（若有，列單號）
+• 蝕本成交：{k}（真蝕本＝售價非空且<成本；若有列車型+售價/成本）
+• ⚠️ 成交但售價未入：{k}（資料缺口，非蝕本；列車型提醒補價）
 • 車房滯場：{k} ｜ 零件到貨逾期：{k}
 • ⚠️ {來源} 資料停更
 （全部 0 → 「✅ 今日無異常」）
