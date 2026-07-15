@@ -5,19 +5,18 @@ description: 產生頭盔王每日 dashboard 並發送到 Slack daily 頻道。�
 
 # Daily Dashboard（頭盔王每日儀表板）
 
-每天彙整 5 個區塊，組成一則 Slack 訊息發到使用者的 daily 頻道。設定來源：`config/dashboard.config.json`。
+每天**把資料查一次**，組裝成**多份報告**發到各自 Slack 頻道（管理層綜合版 + 零售/賣車/車房 部組版）。設定來源：`config/dashboard.config.json`。
 
-## 執行流程（總覽）
+## 執行流程（總覽）—— compute-once → render-many
 
-0. **車房發票同步**（每日先跑，把 BC GARAGE 新發票補進 garage-system `invoice_summary`，見下方「附：同步步驟」）。失敗不影響報表，記錄後繼續。
-1. 讀 `config/dashboard.config.json` 取得來源、目標頻道、各區塊開關。
-2. 依序產生 5 個區塊（見 `daily-dashboard/sections/`）。任一區塊抓取失敗 → 不中斷，該區塊標註「⚠️ 今日無法取得」並附原因，其餘照常。
-3. 用 `daily-dashboard/slack-template.md` 的格式組成完整訊息（繁體中文）。
-4. 發送到 Slack：
-   - 先用 `slack_search_channels` 找 `delivery.channel_name`（預設 `daily`）。找到就用該 `channel_id`。
-   - 找不到頻道 → 發 DM 給 `delivery.fallback_dm_user_id`，並在訊息開頭提醒「找不到 daily 頻道，已改發 DM，請建立或告知頻道」。
-   - **預設先建草稿（`slack_send_message_draft`）還是直接發（`slack_send_message`）？** cron 自動執行時直接發；人手測試時先發草稿讓使用者過目。
-5. 把當日摘要（日期 + 各區塊一句話結論）寫回 Supabase `PM` 專案的 `daily_dashboard_log` 表（若不存在則略過，不報錯），方便累積歷史與隔日「停滯工作」比對。
+0. **車房發票同步**（先跑，把 BC GARAGE 新發票補進 garage-system `invoice_summary`，見「附：同步步驟」）。失敗不影響報表。
+1. 讀 `config/dashboard.config.json`。
+2. **把所有資料查一次**（零售/車房/賣車/租車/保險/現金流/庫存/例外/GitHub/社群…），**數字只算一次**，供各報告共用 → 確保各頻道數字一致。任一資料源失敗 → 該 block 標「⚠️ 今日無法取得」，不中斷。
+3. **逐份組裝並發送**：對 `delivery.reports[]` 每一項，用其 `blocks` 清單，依 `daily-dashboard/report-layouts.md` 對應版面組成該份訊息（繁體中文），發到該 `channel_id`。
+   - 以本人身分發送（Alex，需為該頻道 member）。`send_mode: direct`=直接發；`draft`=先發草稿驗收。
+   - 某頻道發送失敗 → fallback DM 給 `delivery.fallback_dm_user_id` 並註明，**其餘頻道照發**。
+   - **部組頻道只出自己嘅數**（唔夾雜其他線/集團 GP）；公司級 block（GP/GitHub/社群/生產力/Skill）只出 management。
+4. 把當日各線摘要寫回 Supabase 快照表 `daily_dashboard_log`（若不存在則略過，不報錯）——鎖數/可審計/隔日比對。
 
 ## 區塊總覽
 

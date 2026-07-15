@@ -11,13 +11,40 @@
 
   "delivery": {
     "platform": "slack",
-    "mode": "channel",
-    "channel_id": "C0BDLSKM2FQ",
-    "channel_name": "每日匯報",
-    "fallback_dm_user_id": "U02J06REWP5",
     "send_mode": "direct",
+    "fallback_dm_user_id": "U02J06REWP5",
     "language": "zh-Hant",
-    "note": "發到私人頻道 #每日匯報 (C0BDLSKM2FQ)。若頻道發送失敗，fallback 發 DM 給本人。cron/觸發器自動執行用 direct；人手測試可改 draft。"
+    "note": "一次 run 產生多份報告，各自發到 reports[] 指定頻道。以『你(Alex)』身分發送，需 Alex 為該頻道 member（三條部組頻道皆 Alex 所建）。send_mode: direct=直接發；draft=先發草稿驗收。任一頻道失敗 → fallback DM 給本人，其餘照發。",
+    "reports": [
+      {
+        "key": "management",
+        "channel_name": "每日匯報",
+        "channel_id": "C0BDLSKM2FQ",
+        "audience": "管理層",
+        "blocks": ["group-business", "group-gp", "cashflow", "inventory", "exceptions", "stalled", "github", "community", "productivity", "skill"]
+      },
+      {
+        "key": "retail",
+        "channel_name": "零售",
+        "channel_id": "C08JNU5NQ5N",
+        "audience": "零售團隊",
+        "blocks": ["retail-daily", "retail-target", "retail-top", "retail-lowstock", "retail-actions"]
+      },
+      {
+        "key": "sales",
+        "channel_name": "賣車",
+        "channel_id": "C03LALA3CDR",
+        "audience": "賣車團隊",
+        "blocks": ["sales-target", "sales-pipeline", "inventory-health", "sales-cashflow", "insurance", "sales-exceptions", "sales-actions"]
+      },
+      {
+        "key": "garage",
+        "channel_name": "車房",
+        "channel_id": "C02HY4J8VLN",
+        "audience": "車房",
+        "blocks": ["garage-target", "appointments-capacity", "garage-exceptions", "daily-close", "garage-actions"]
+      }
+    ]
   },
 
   "monthly_targets": {
