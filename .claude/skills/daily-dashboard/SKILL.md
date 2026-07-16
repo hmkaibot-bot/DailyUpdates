@@ -11,7 +11,7 @@ description: 產生頭盔王每日 dashboard 並發送到 Slack daily 頻道。�
 
 0. **車房發票同步**（先跑，把 BC GARAGE 新發票補進 garage-system `invoice_summary`，見「附：同步步驟」）。失敗不影響報表。
 1. 讀 `config/dashboard.config.json`。
-2. **把所有資料查一次**（零售/車房/賣車/租車/保險/現金流/庫存/例外/GitHub/社群…），**數字只算一次**，供各報告共用 → 確保各頻道數字一致。任一資料源失敗 → 該 block 標「⚠️ 今日無法取得」，不中斷。
+2. **把所有資料查一次**：**逐條照跑 `daily-dashboard/queries.md` 內鎖定 SQL（Q1/Q1b/Q2/Q3…），不得即興改寫欄位或口徑**。數字只算一次，供各報告共用 → 各頻道一致。任一資料源失敗 → 該 block 標「⚠️ 今日無法取得」，不中斷。查詢報錯 → 先修 queries.md，唔好 run 時亂改。
 3. **逐份組裝並發送**：對 `delivery.reports[]` 每一項，用其 `blocks` 清單，依 `daily-dashboard/report-layouts.md` 對應版面組成該份訊息（繁體中文），發到該 `channel_id`。
    - 以本人身分發送（Alex，需為該頻道 member）。`send_mode: direct`=直接發；`draft`=先發草稿驗收。
    - 某頻道發送失敗 → fallback DM 給 `delivery.fallback_dm_user_id` 並註明，**其餘頻道照發**。
