@@ -21,7 +21,10 @@
         "channel_name": "每日匯報",
         "channel_id": "C0BDLSKM2FQ",
         "audience": "管理層",
-        "blocks": ["group-business", "group-gp", "cashflow", "inventory", "exceptions", "stalled", "github", "community", "productivity", "skill"]
+        "blocks": ["mgmt-gp-scorecard", "cashflow-mini", "inventory-mini", "exceptions", "insight"],
+        "weekly_blocks": ["stalled", "github", "community", "productivity", "skill"],
+        "weekly_day": "Mon",
+        "note": "每日只出精簡前頁（GP+四線達成計分板+現金/庫存一行+例外+一句洞察）。閱讀性區塊(GitHub/社群/生產力/Skill/停滯)改逢星期一出。昨日每線細節不在此重複(在部組頻道)。"
       },
       {
         "key": "retail",
@@ -149,7 +152,13 @@
       "audience": "management",
       "source": "supabase",
       "section": "11-exceptions",
-      "note": "例外清單：蝕本成交/壓貨>90/保險續保到期未跟·逾期/車房滯場/零件逾期/現金差異/資料停更。全部0則『今日無異常』。"
+      "note": "例外清單：蝕本成交/壓貨>90/保險續保到期未跟·逾期/車房滯場/零件逾期/現金差異/資料停更/車房未來預約不足。全部0則『今日無異常』。"
+    },
+    "garage_booking_alert": {
+      "enabled": true,
+      "lookahead_days": 7,
+      "low_booking_threshold_per_day": 4,
+      "note": "偵測未來 N 日車房預約負荷。某日預約 < 門檻 = 產能閒置 → flag『未來預約不足，建議宣傳』。門檻 per-day，8 師傅，可調。用於 #車房 報告 + management 例外。"
     },
 
     "helmet_king": {

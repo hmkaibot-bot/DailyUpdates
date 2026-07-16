@@ -15,7 +15,8 @@ description: 產生頭盔王每日 dashboard 並發送到 Slack daily 頻道。�
 3. **逐份組裝並發送**：對 `delivery.reports[]` 每一項，用其 `blocks` 清單，依 `daily-dashboard/report-layouts.md` 對應版面組成該份訊息（繁體中文），發到該 `channel_id`。
    - 以本人身分發送（Alex，需為該頻道 member）。`send_mode: direct`=直接發；`draft`=先發草稿驗收。
    - 某頻道發送失敗 → fallback DM 給 `delivery.fallback_dm_user_id` 並註明，**其餘頻道照發**。
-   - **部組頻道只出自己嘅數**（唔夾雜其他線/集團 GP）；公司級 block（GP/GitHub/社群/生產力/Skill）只出 management。
+   - **部組頻道只出自己嘅數**（唔夾雜其他線/集團 GP）；公司級 block 只出 management。
+   - **管理版每日只出精簡前頁**（`blocks`）；`weekly_blocks`（GitHub/社群/生產力/Skill/停滯）只在 `weekly_day`（預設 Mon）當日附加。判斷今日星期幾以決定是否加週報段。
 4. 把當日各線摘要寫回 Supabase 快照表 `daily_dashboard_log`（若不存在則略過，不報錯）——鎖數/可審計/隔日比對。
 
 ## 區塊總覽

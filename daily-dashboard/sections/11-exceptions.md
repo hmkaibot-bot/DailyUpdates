@@ -36,6 +36,19 @@ SELECT
   (SELECT count(*) FROM appointments WHERE parts_eta < current_date AND coalesce(parts_arrived,false)=false) AS parts_overdue,
   (SELECT count(*) FROM daily_cash_reports WHERE report_date=current_date-1 AND coalesce(cash_variance,0)<>0) AS cash_variance_flag;
 ```
+**車房未來預約不足（garage-system）** — 產能閒置預警，及早宣傳
+```sql
+-- config: garage_booking_alert.lookahead_days=7, low_booking_threshold_per_day=4
+SELECT scheduled_at::date d, count(*) appts
+FROM appointments
+WHERE status NOT IN ('cancelled','rejected')
+  AND scheduled_at::date BETWEEN current_date AND current_date + 6
+GROUP BY 1 ORDER BY 1;
+-- 某日 appts < 門檻(4) → flag『未來預約不足』並列出該日。全部達標則不列。
+-- 驗證(7/16)：未來7日共13個；7/18(六)=1、7/22(三)=1、7/20/7/21=2 → 多日低於門檻 → 觸發。
+```
+> 觸發後可接 `garage-fill-slots` skill（偵測→草擬催約訊息+到期保養客名單→人手批准發送）。
+
 **資料新鮮度（信任度）**
 ```sql
 -- Retail Dashboard：SELECT source, max(finished_at) FROM etl_sync_log GROUP BY 1;（表可能空）
@@ -50,6 +63,7 @@ SELECT
 • 賣車壓貨>90日：{k}（若有，點名）
 • 蝕本成交：{k}（真蝕本＝售價非空且<成本；若有列車型+售價/成本）
 • ⚠️ 成交但售價未入：{k}（資料缺口，非蝕本；列車型提醒補價）
+• ⚠️ 車房未來 7 日預約不足：{列 <門檻 嘅日子} → 建議即時宣傳催約
 • 車房滯場：{k} ｜ 零件到貨逾期：{k}
 • ⚠️ {來源} 資料停更
 （全部 0 → 「✅ 今日無異常」）
