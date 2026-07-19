@@ -17,7 +17,16 @@ description: 產生頭盔王每日 dashboard 並發送到 Slack daily 頻道。�
    - 某頻道發送失敗 → fallback DM 給 `delivery.fallback_dm_user_id` 並註明，**其餘頻道照發**。
    - **部組頻道只出自己嘅數**（唔夾雜其他線/集團 GP）；公司級 block 只出 management。
    - **管理版每日只出精簡前頁**（`blocks`）；`weekly_blocks`（GitHub/社群/生產力/Skill/停滯）只在 `weekly_day`（預設 Mon）當日附加。判斷今日星期幾以決定是否加週報段。
-4. 把當日各線摘要寫回 Supabase 快照表 `daily_dashboard_log`（若不存在則略過，不報錯）——鎖數/可審計/隔日比對。
+4. 把當日各線數字寫回快照表 `daily_dashboard_log`（PM 專案 `saxtopyysysqzvcltash`）：`INSERT ... ON CONFLICT(report_date) DO UPDATE`，`data` 存 jsonb，`send_status` 記各頻道發送結果。—— 鎖數/可審計/隔日比對。
+
+## 🛡️ 穩定性規則（防「空白數字」— 必守）
+
+過往 autonomous run 出現賣車/車房空白，根因 = Supabase MCP 連線間歇性中斷，後面查嘅專案回空。以下**必守**：
+1. **開跑前**先做一次輕量 Supabase 連線測試（例：`SELECT 1`）。連唔到 → 等 10 秒重試，最多 3 次。
+2. **每條業務 query**（尤其賣車 26king、車房 garage-system/BC）若回 null 或報錯 → **等 5 秒重試，最多 3 次**（連線通常幾秒重連）。賣車/車房與零售**同等優先**，不得因排後而放棄。
+3. **永不出空白報告**：某線業務數字（金額/台數）重試後仍取不到 → **唔好發嗰份空白**；改發一句「⚠️ {線} 數據暫時取不到，已排程稍後補發」，並喺 `daily_dashboard_log.notes` 記低，同時再排一次重試（如 5 分鐘後）。寧可遲，唔好白。
+4. **一致性**：所有頻道用**同一次計算結果**（先全部算好、寫快照，再逐頻道發）；發送前確認關鍵數字（GP、四線 MTD、賣車淨利、車房 MTD）皆非 null。
+5. 任一頻道發送失敗 → fallback DM，其餘照發，並喺 `send_status` 記低。
 
 ## 區塊總覽
 
