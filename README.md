@@ -47,6 +47,7 @@ daily-dashboard/
 | 零售 - 庫存管理後台 | https://inventory.helmetking.com/ |
 | 賣車(26King) - 保險後台 | https://insadmin.26king.hk/ |
 | 租車(Rentalbike.hk) - 管理後台 | https://rentalbike.hk/admin/login |
+| 管理 - 財務後台 | https://finance.helmetking.com/ |
 
 ## 已知限制 / 待確認
 
