@@ -40,6 +40,15 @@ daily-dashboard/
 - **自動跑**：cron 每天 09:30（`Asia/Hong_Kong`）觸發，直接發送到 daily 頻道。
 - **調整內容**：編輯 `config/dashboard.config.json`（開關區塊、改門檻、加 repo、改時間）。
 
+## 系統後台連結（人手參考，見 config `admin_links`）
+
+| 系統 | 連結 |
+|------|------|
+| 零售 - 庫存管理後台 | https://inventory.helmetking.com/ |
+| 賣車(26King) - 保險後台 | https://insadmin.26king.hk/ |
+| 租車(Rentalbike.hk) - 管理後台 | https://rentalbike.hk/admin/login |
+| 管理 - 財務後台 | https://finance.helmetking.com/ |
+
 ## 已知限制 / 待確認
 
 1. **Slack `daily` 頻道**：目前搜尋不到同名頻道，需確認正確頻道名/ID（填入 config `delivery.channel_id`），或由本人建立。找不到時 skill 會 fallback 發 DM。
