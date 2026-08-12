@@ -50,6 +50,13 @@
     ]
   },
 
+  "admin_links": {
+    "_comment": "各系統後台連結，供人手核對/操作用（非 skill 邏輯依賴，純參考）。",
+    "retail_inventory_ops": { "label": "零售 - 庫存管理後台", "url": "https://inventory.helmetking.com/" },
+    "vehicle_sales_insurance_admin": { "label": "賣車(26King) - 保險後台", "url": "https://insadmin.26king.hk/" },
+    "rental_admin": { "label": "租車(Rentalbike.hk) - 管理後台", "url": "https://rentalbike.hk/admin/login" }
+  },
+
   "monthly_targets": {
     "_comment": "每月目標。零售/車房 = 營業額(revenue)；賣車/租車 = 純利(net profit)。追數一律以『最後完整日』為準。",
     "retail":        { "basis": "revenue",    "amount": 1400000 },
