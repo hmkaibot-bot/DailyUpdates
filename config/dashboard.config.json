@@ -1,6 +1,5 @@
 {
   "$comment": "頭盔王 Daily Dashboard 設定檔。cron 與 skill 都從這裡讀取來源與目標。修改這裡即可調整，不需要改 skill 邏輯。",
-
   "schedule": {
     "time_local": "09:30",
     "timezone": "Asia/Hong_Kong",
@@ -8,7 +7,6 @@
     "mode": "morning_report_previous_day",
     "note": "早上 09:30 出晨報，營收/追數一律報『最後完整日』(昨日)。已確認採此模式。"
   },
-
   "delivery": {
     "platform": "slack",
     "send_mode": "direct",
@@ -21,8 +19,20 @@
         "channel_name": "每日匯報",
         "channel_id": "C0BDLSKM2FQ",
         "audience": "管理層",
-        "blocks": ["mgmt-gp-scorecard", "cashflow-mini", "inventory-mini", "exceptions", "insight"],
-        "weekly_blocks": ["stalled", "github", "community", "productivity", "skill"],
+        "blocks": [
+          "mgmt-gp-scorecard",
+          "cashflow-mini",
+          "inventory-mini",
+          "exceptions",
+          "insight"
+        ],
+        "weekly_blocks": [
+          "stalled",
+          "github",
+          "community",
+          "productivity",
+          "skill"
+        ],
         "weekly_day": "Mon",
         "note": "每日只出精簡前頁（GP+四線達成計分板+現金/庫存一行+例外+一句洞察）。閱讀性區塊(GitHub/社群/生產力/Skill/停滯)改逢星期一出。昨日每線細節不在此重複(在部組頻道)。"
       },
@@ -31,49 +41,92 @@
         "channel_name": "零售",
         "channel_id": "C08JNU5NQ5N",
         "audience": "零售團隊",
-        "blocks": ["retail-daily", "retail-target", "retail-top", "retail-lowstock", "retail-actions"]
+        "blocks": [
+          "retail-daily",
+          "retail-target",
+          "retail-top",
+          "retail-lowstock",
+          "retail-actions"
+        ]
       },
       {
         "key": "sales",
         "channel_name": "賣車",
         "channel_id": "C03LALA3CDR",
         "audience": "賣車團隊",
-        "blocks": ["sales-target", "sales-pipeline", "inventory-health", "sales-cashflow", "insurance", "sales-exceptions", "sales-actions"]
+        "blocks": [
+          "sales-target",
+          "sales-pipeline",
+          "inventory-health",
+          "sales-cashflow",
+          "insurance",
+          "sales-exceptions",
+          "sales-actions"
+        ]
       },
       {
         "key": "garage",
         "channel_name": "車房",
         "channel_id": "C02HY4J8VLN",
         "audience": "車房",
-        "blocks": ["garage-target", "appointments-capacity", "garage-exceptions", "daily-close", "garage-actions"]
+        "blocks": [
+          "garage-target",
+          "appointments-capacity",
+          "garage-exceptions",
+          "daily-close",
+          "garage-actions"
+        ]
       }
     ]
   },
-
   "monthly_targets": {
     "_comment": "每月目標。零售/車房 = 營業額(revenue)；賣車/租車 = 純利(net profit)。追數一律以『最後完整日』為準。",
-    "retail":        { "basis": "revenue",    "amount": 1400000 },
-    "garage":        { "basis": "revenue",    "amount": 400000 },
-    "vehicle_sales": { "basis": "net_profit", "amount": 250000 },
-    "rental":        { "basis": "net_profit", "amount": 20000 },
+    "retail": {
+      "basis": "revenue",
+      "amount": 1400000
+    },
+    "garage": {
+      "basis": "revenue",
+      "amount": 400000,
+      "basis_note": "$400k 係按舊 BC 發票口徑訂（2026-08：176張/$363,665/均價$2,066）。garage-system 交車工單均價 $1,423，且結構上唔包 walk-in 配件零售、櫃檯落單、26 Pack 預售 —— 口徑唔同。⚠️ 未經老闆重新校準前，#車房 唔准出「達成 X%／落後」字眼，只出絕對金額 + 「目標待重校」。"
+    },
+    "vehicle_sales": {
+      "basis": "net_profit",
+      "amount": 250000
+    },
+    "rental": {
+      "basis": "net_profit",
+      "amount": 20000
+    },
     "pacing_rule": "LCD=最後完整日=current_date-1; elapsed=day-of(LCD); days_in_month=當月日數; 達成%=MTD/目標; 應達%=elapsed/days_in_month; 距標=目標-MTD; 餘下日=days_in_month-elapsed; 每日需追=距標/餘下日; 預估埋月=MTD/elapsed*days_in_month。"
   },
-
   "group_profit": {
-    "_comment": "集團總利潤 = 各組利潤相加。⚠️ 只餘零售仍無成本(COGS)，用『毛利率假設』× 營業額估算；車房/賣車/租車已改用真實數。零售毛利率為暫定預設，請老闆提供實際值後改這裡。",
-    "retail":        { "method": "margin_assumption", "gross_margin_pct": 34, "source": "Shopify 營業額 × 毛利率(無COGS需假設)" },
-    "garage":        {
+    "_comment": "集團總利潤 = 各組利潤相加。零售仍用毛利率假設(34%)；車房用零件貢獻毛利(未計師傅人工)；賣車/租車用真實淨利。⚠️ 車房嗰項同其餘項層次唔同，比較時要小心 —— 見 garage.caveat。",
+    "retail": {
+      "method": "margin_assumption",
+      "gross_margin_pct": 34,
+      "source": "Shopify 營業額 × 毛利率(無COGS需假設)"
+    },
+    "garage": {
       "method": "actual",
-      "source": "garage-system 已交車工單真實毛利 = v_job_order_billing.grand_total − sum(job_task_parts.quantity × unit_cost)，見 queries.md Q3b",
+      "source": "garage-system 已交車工單零件貢獻毛利 = v_job_order_billing.grand_total − sum(job_task_parts.quantity × unit_cost)（**未扣師傅人工**），見 queries.md Q3b",
       "basis_date": "job_orders.delivered_at",
       "effective_from": "2026-09-01",
       "verified": "2026-09-04 實測 21單 收入 $29,887.00 − 零件成本 $8,560.25 = 毛利 $21,326.75 (71.4%)，同 26 維修部 app 儀表板分毫不差",
       "fallback_gross_margin_pct": 48,
-      "fallback_note": "2026-09-01 前 garage-system 無交車工單資料，該段期間回退用 BC GARAGE 營業額 × 48% 假設。跨越切換點做月比較時必須標明『來源已切換，非同口徑』。",
-      "warning_do_not_sum": "車房營收有兩個來源(BC GARAGE 發票 / garage-system 工單)，時間上接力而非重疊。9月工單 bc_pushed_at 全部 NULL，將來若推去 BC 會兩邊都有 — 只可揀一個，絕不可相加。"
+      "fallback_note": "**僅限 2026-08-31 或之前嘅歷史期間；2026-09-01 起一律唔准用 48% 假設，亦唔准 fallback 去 BC 補數。** 2026-09-01 前 garage-system 無交車工單資料，該段期間回退用 BC GARAGE 營業額 × 48% 假設。跨越切換點做月比較時必須標明『來源已切換，非同口徑』。",
+      "warning_do_not_sum": "車房營收兩個來源時間上接力而非重疊（BC ≤2026-08-31、garage-system 工單 2026-09-01 起）。9月工單 bc_pushed_at 全部 NULL，一旦推去 BC 就兩邊都有 —— 只可揀一個，絕不可相加。",
+      "gp_label": "零件貢獻毛利（未計師傅人工）",
+      "caveat": "⚠️ 呢個唔係 all-in 毛利率。工時佔收入 57.5% 而公式完全冇人工成本；另有零件未入 unit_cost（2026-09-04 實測 4 張單、涉零件售價 $3,940，按有價零件成本率 68.5% 補返，毛利率會由 71.4% 跌到約 62%）。71.4% 係上限值，唔可以同舊制 48% 假設直接比較（48% 反而接近 all-in）。"
     },
-    "vehicle_sales": { "method": "actual", "source": "已實現純利(售價-成本/寄賣佣金)" },
-    "rental":        { "method": "actual", "source": "total_fee - company_expense" },
+    "vehicle_sales": {
+      "method": "actual",
+      "source": "已實現純利(售價-成本/寄賣佣金)"
+    },
+    "rental": {
+      "method": "actual",
+      "source": "total_fee - company_expense"
+    },
     "insurance": {
       "method": "actual",
       "project_id": "kpvakfbxpachnotjvnyu",
@@ -93,44 +146,61 @@
       "note": "租屋收入（收租），每月固定 HK$52,000，當純利計入集團 GP、無 target。若要扣自付租金再調整 monthly_amount 或改為 net。"
     },
     "monthly_target": 1000000,
-    "target_note": "集團總 GP 月目標 = HK$1,000,000 = 零售毛利估(唯一仍用假設) + 車房真實毛利 + 賣車已實現純利 + 租車淨利 + 保險(保費×15%) + 租屋收入(固定$52,000)。",
+    "target_note": "集團總 GP 月目標 = HK$1,000,000 = 零售毛利估(唯一仍用假設) + 車房零件貢獻毛利(未計人工) + 賣車已實現純利 + 租車淨利 + 保險(保費×15%) + 租屋收入(固定$52,000)。⚠️ $1M 當初係按「車房 BC $365k × 48% ≈ $175k」校出嚟；車房分項換咗口徑（層次唔同）之後，$1M 本身亦需要重新校準 —— 見 group_profit.garage.caveat。",
     "show_caveat": true
   },
-
   "sections": {
     "github_trending": {
       "enabled": true,
       "source": "web",
       "url": "https://github.com/trending",
-      "interests": ["ai-agents", "developer-productivity", "automation", "e-commerce", "saas"],
-      "languages": ["TypeScript", "Python", "Go"],
+      "interests": [
+        "ai-agents",
+        "developer-productivity",
+        "automation",
+        "e-commerce",
+        "saas"
+      ],
+      "languages": [
+        "TypeScript",
+        "Python",
+        "Go"
+      ],
       "top_n": 5
     },
-
     "productivity": {
       "enabled": true,
       "source": "ai-generated",
-      "focus": ["個人生產力", "公司/團隊生產力"],
+      "focus": [
+        "個人生產力",
+        "公司/團隊生產力"
+      ],
       "note": "結合當日其他區塊內容（停滯工作、生意數據）給出 1-2 個可立即執行的建議。"
     },
-
     "skill_workflow": {
       "enabled": true,
       "source": "rotating-guide",
       "note": "每天輪播一個『如何建立 Claude skill』的步驟/技巧，逐步累積成內部 skill 開發手冊。"
     },
-
     "community_trends": {
       "enabled": true,
       "source": "web-search",
       "topics": {
-        "ai": ["r/LocalLLaMA", "r/artificial", "r/singularity", "AI 本週話題"],
-        "motorcycle": ["r/motorcycles", "電單車 摩托 2026 趨勢", "helmet gear ADV electric"]
+        "ai": [
+          "r/LocalLLaMA",
+          "r/artificial",
+          "r/singularity",
+          "AI 本週話題"
+        ],
+        "motorcycle": [
+          "r/motorcycles",
+          "電單車 摩托 2026 趨勢",
+          "helmet gear ADV electric"
+        ]
       },
       "per_topic": 3,
       "note": "Reddit 直連被本環境代理封鎖，故用 WebSearch 歸納主題（非逐帖榜）。要真 Reddit 榜需配 Reddit API 憑證（n8n / edge function）。"
     },
-
     "stalled_work": {
       "enabled": true,
       "source": "github",
@@ -138,10 +208,13 @@
       "repos": [
         "hmkaibot-bot/dailyupdates"
       ],
-      "watch": ["assigned_issues", "open_prs", "review_requested"],
+      "watch": [
+        "assigned_issues",
+        "open_prs",
+        "review_requested"
+      ],
       "note": "目前 GitHub MCP 權限僅限 hmkaibot-bot/dailyupdates。若要監測更多 repo，需擴大授權範圍後把 repo 加進這個清單。"
     },
-
     "cashflow_ar_ap": {
       "enabled": true,
       "audience": "management",
@@ -169,7 +242,6 @@
       "low_booking_threshold_per_day": 4,
       "note": "偵測未來 N 日車房預約負荷。某日預約 < 門檻 = 產能閒置 → flag『未來預約不足，建議宣傳』。門檻 per-day，8 師傅，可調。用於 #車房 報告 + management 例外。"
     },
-
     "helmet_king": {
       "enabled": true,
       "source": "supabase",
@@ -179,25 +251,53 @@
           "project_name": "Retail Dashboard",
           "project_id": "myrangmxyjamsupbxbba",
           "confirmed": true,
-          "key_tables": ["shopify_orders", "shopify_order_lines", "shopify_products", "shopify_inventory", "meta_ad_insights"]
+          "key_tables": [
+            "shopify_orders",
+            "shopify_order_lines",
+            "shopify_products",
+            "shopify_inventory",
+            "meta_ad_insights"
+          ]
         },
         {
-          "label": "車房營收 (Garage revenue — 權威來源)",
+          "label": "車房營收（歷史 ≤2026-08-31）— 舊制 BC GARAGE，已不再權威",
           "project_name": "Retail Dashboard — BC GARAGE 維度",
           "project_id": "myrangmxyjamsupbxbba",
           "confirmed": true,
-          "authoritative_query": "bc_sales_invoices WHERE dimension1_code='GARAGE' AND number LIKE 'SI-%' AND status<>'Canceled'",
-          "key_tables": ["bc_sales_invoices", "bc_invoice_lines"]
+          "key_tables": [
+            "bc_sales_invoices",
+            "bc_invoice_lines"
+          ],
+          "authoritative": false,
+          "superseded_by": "garage-system 交車工單（2026-09-01 起）",
+          "valid_through": "2026-08-31",
+          "historical_query": "bc_sales_invoices WHERE dimension1_code='GARAGE' AND number LIKE 'SI-%' AND status<>'Canceled' AND invoice_date <= '2026-08-31'",
+          "note": "老闆 2026-09-04 決定不再以 BC 為準。只供腳註參考，不可與 garage-system 相加，不可做 ▲▼ 比較。2026-10-01 後可退役。",
+          "retire_after": "2026-10-01"
         },
         {
-          "label": "車房營運 (Garage ops — 預約/工單數量)",
+          "label": "車房營收 + 毛利 + 營運（Garage）— 權威來源，2026-09-01 起",
           "project_name": "garage-system",
           "project_id": "qxxegmvwtndoosqrhyar",
           "confirmed": true,
-          "key_tables": ["appointments", "job_orders", "job_tasks", "job_task_parts", "v_job_order_billing"],
-          "revenue_and_gp_source_from_2026_09": "v_job_order_billing.grand_total (基準 delivered_at) − sum(job_task_parts.quantity × unit_cost)。交車工單流程 2026-09-01 上線，此後為車房營收+毛利權威來源。見 queries.md Q3b。",
-          "do_not_use_for_revenue": ["daily_cash_reports (空表)", "job_orders.final_price (全NULL)", "invoices/invoice_lines (空表，v_invoice_gross_profit 因此無數)"],
-          "note": "見 /DATA-GAPS.md。2026-09 前營收取 BC GARAGE 維度；2026-09 起取本專案工單(有真實零件成本)。⚠️ 兩者絕不可相加。注意 job_task_parts.unit_price 係售價、unit_cost 先係成本。"
+          "key_tables": [
+            "appointments",
+            "job_orders",
+            "job_tasks",
+            "job_task_parts",
+            "v_job_order_billing"
+          ],
+          "do_not_use_for_revenue": [
+            "daily_cash_reports (空表)",
+            "job_orders.final_price (全NULL)",
+            "invoices/invoice_lines (空表，v_invoice_gross_profit 因此無數)",
+            "invoice_summary (BC 鏡像，凍結喺 2026-08-31，逐日最多短 98.6%)",
+            "_archive_* 表 (delivered_at 批量回填造假、冇 unit_cost、只覆蓋同期 BC 嘅 14.5%)",
+            "payment_receipts / v_daily_cash_summary (只得 7 行、停 2026-06-23、內容係供應商付款)"
+          ],
+          "note": "見 /DATA-GAPS.md。2026-09 前營收取 BC GARAGE 維度；2026-09 起取本專案工單(有真實零件成本)。⚠️ 兩者絕不可相加。注意 job_task_parts.unit_price 係售價、unit_cost 先係成本。",
+          "authoritative": true,
+          "authoritative_revenue_and_gp": "v_job_order_billing.grand_total (基準 delivered_at) − sum(job_task_parts.quantity × unit_cost)。交車工單流程 2026-09-01 上線，此後為車房營收+毛利權威來源。見 queries.md Q3b。"
         },
         {
           "label": "賣車 (Vehicle Sales — 26King)",
@@ -205,8 +305,15 @@
           "project_id": "kpvakfbxpachnotjvnyu",
           "confirmed": true,
           "section": "07-vehicle-sales",
-          "key_tables": ["vehicles", "dealer_orders", "payment_records"],
-          "metrics_confirmed": {"今月成交台數": "vehicles sold_at 本月", "客人預留": "lifecycle_status='reserved'"},
+          "key_tables": [
+            "vehicles",
+            "dealer_orders",
+            "payment_records"
+          ],
+          "metrics_confirmed": {
+            "今月成交台數": "vehicles sold_at 本月",
+            "客人預留": "lifecycle_status='reserved'"
+          },
           "profit_rule": "毛利 = 買斷/新車(售價-成本) + 寄賣(佣金=consignment_sale_price×rate%)；再減 10% 佣金 = 淨利。",
           "sales_commission_pct": 10,
           "net_profit_formula": "賣車淨利 = 毛利 × (1 - 0.10)  ← target($250k) 與集團 GP 皆用此淨利",
@@ -218,8 +325,17 @@
           "project_id": "xhyhfrxhvumskqzsoahk",
           "confirmed": true,
           "section": "08-rental",
-          "key_tables": ["admin_bookings", "fleet_vehicles", "price_tiers"],
-          "metrics": ["MTD 收入(total_fee)", "車隊使用率(在役5架)", "今日取/還車", "押金在手"],
+          "key_tables": [
+            "admin_bookings",
+            "fleet_vehicles",
+            "price_tiers"
+          ],
+          "metrics": [
+            "MTD 收入(total_fee)",
+            "車隊使用率(在役5架)",
+            "今日取/還車",
+            "押金在手"
+          ],
           "data_quality_warning": "admin_bookings 有未來日期(8-9月)→ 疑測試/種子資料，需先清洗"
         },
         {
@@ -231,7 +347,13 @@
           "note": "已搜 BC bc_sales_invoices/bc_invoice_lines（dimension1=GARAGE/CARSHOP、dimension2 空、客戶名與品項描述均無 tour/旅/團）找不到旅行團收入流。待老闆指明來源（哪個系統/客戶/帳/平台或如何辨識）。"
         }
       ],
-      "metrics": ["最後完整日營業額（排除今日）", "MTD 本月至今 + 上月同期比較", "訂單/工單數", "vs 前一日 + vs 上週同日", "今日預約（前瞻）"],
+      "metrics": [
+        "最後完整日營業額（排除今日）",
+        "MTD 本月至今 + 上月同期比較",
+        "訂單/工單數",
+        "vs 前一日 + vs 上週同日",
+        "今日預約（前瞻）"
+      ],
       "reporting_rule": "營收一律報『最後一個完整日』(< current_date)；今日只作未結算參考、不比較。MTD = [月初, current_date) vs 上月同期同日數。",
       "data_freshness_check": true,
       "candidate_projects_seen": {

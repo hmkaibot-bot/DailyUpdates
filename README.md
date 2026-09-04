@@ -28,11 +28,13 @@ daily-dashboard/
 | 業務線 | 權威來源 | project_id |
 |--------|----------|-----------|
 | 零售（Helmet King Shopify） | Retail Dashboard | `myrangmxyjamsupbxbba` |
-| 車房營收（Helmet King + 26King） | Retail Dashboard 的 BC GARAGE 維度（`bc_sales_invoices`） | `myrangmxyjamsupbxbba` |
+| 車房營收 + 毛利（2026-09-01 起） | **garage-system 交車工單**（`v_job_order_billing` + `job_task_parts.unit_cost`） | `qxxegmvwtndoosqrhyar` |
 | 車房營運（預約/工單） | garage-system | `qxxegmvwtndoosqrhyar` |
 
-> 📋 車房營收一律取 **BC GARAGE 維度**；garage-system 的 `invoice_summary` / `daily_cash_reports` /
-> `job_orders.final_price` 目前未維護，**勿用於營收**。完整調查見 **`DATA-GAPS.md`**。
+> 📋 **2026-09-04 起車房營收唯一權威 = garage-system 交車工單**（老闆決定不再以 BC 為準）。
+> BC GARAGE 只作 ≤2026-08-31 的歷史腳註參考，**絕不可與 garage-system 相加**。
+> 不要用 `invoice_summary`（BC 鏡像、凍結 2026-08-31）/ `daily_cash_reports`（空表）/ `job_orders.final_price`（全 NULL）。
+> 詳見 `DATA-GAPS.md` 與 `daily-dashboard/queries.md` Q3b。
 
 ## 怎麼用
 
