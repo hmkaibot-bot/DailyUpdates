@@ -94,3 +94,44 @@ WHERE NOT EXISTS (SELECT 1 FROM public.invoice_summary s WHERE s.invoice_number 
 | final_price | ❌ 只能改流程 | 決定語意；要不要我寫「結案自動計價」trigger（往後生效，不回填歷史） |
 | daily_cash_reports | ❌ 只能改流程 | 要不要我做「車房每日結算」skill（往後人手埋數） |
 | **dashboard 報表** | ✅ 已改用 BC GARAGE 權威來源 | 無 |
+
+---
+
+# 更新（2026-09-04）：車房營收/毛利來源已切換
+
+## ✅ 缺口 2/3 實質解決 —— 車房有真實毛利了
+
+garage-system 嘅**交車工單流程 2026-09-01 上線**（最早 `job_orders.delivered_at` = 9/1），
+而家可以直接算出**真實毛利**，唔使再靠「營業額 × 48% 假設」：
+
+```
+收入   = v_job_order_billing.grand_total（基準 delivered_at）
+零件成本 = sum(job_task_parts.quantity × unit_cost)，排除 status='取消'
+毛利   = 收入 − 零件成本
+```
+
+2026-09-04 實測 **21 單 / 收入 $29,887.00 / 零件成本 $8,560.25 / 毛利 $21,326.75 / 71.4%**，
+同 26 維修部 app 儀表板分毫不差。鎖定 SQL 見 `daily-dashboard/queries.md` Q3b。
+
+> ⚠️ `job_task_parts.unit_price` 係**賣俾客嘅價**，`unit_cost` 先係**入貨成本**。撈亂會令毛利變 0。
+> ⚠️ `invoices` / `invoice_lines` 兩張表係**空**嘅，所以 `v_invoice_gross_profit` 查唔到嘢——唔好用嗰個 view。
+
+## 🚨 新缺口：BC 同步 2026-08-31 起中斷
+
+`bc_sales_invoices` **全表**（唔止 GARAGE 維度）`max(invoice_date)` 同 `max(created_at)` 都停喺 **2026-08-31**，
+到 9/4 已經斷咗 4 日。呢個唔係以往嗰種一兩日 lag，係同步壞咗，**要修**。
+
+影響：2026-09 之後 BC 完全冇車房數。暫時靠 garage-system 工單頂住，但：
+- BC 亦係**零售以外**其他 BC 維度數據嘅來源，斷咗會影響其他報表；
+- 9 月嗰 21 張工單 `bc_sales_order` / `bc_pushed_at` **全部 NULL**，即係仲未推去 BC。
+
+## ⚠️ 兩個來源絕不可相加
+
+| | 6月 | 7月 | 8月 | 9月 |
+|---|---|---|---|---|
+| BC GARAGE `bc_sales_invoices` | 141 / $343,503 | 147 / $320,791 | 176 / $363,665 | **0** |
+| garage-system `job_orders` | — | — | — | 21 / $29,887 |
+
+時間上係**接力**唔係重疊。現行規則：**2026-09 起以 garage-system 為準**，8 月及之前用 BC。
+一旦 BC 修好並補回 9 月，同一筆生意會兩邊都有 —— **只可揀一個來源**。
+跨越切換點做月比較（vs 上月）時，報表必須標明「來源已切換，非同口徑」。

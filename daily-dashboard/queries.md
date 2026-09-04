@@ -184,6 +184,62 @@ SELECT
 ```
 > 未來預約不足：`next7_booking` 內任何一日 `n < 4`（config `garage_booking_alert.low_booking_threshold_per_day`）→ flag 並列該日。
 
+## Q3b — 車房營收 + **真實毛利**（garage-system `qxxegmvwtndoosqrhyar`）
+
+**已對齊 26 維修部 app 儀表板**。2026-09-04 實測重現：`inv_cnt 21 · revenue 29,887.00 · parts_cost 8,560.25 · gross_profit 21,326.75 · gp_pct 71.4`。
+⚠️ **車房 GP 唔再用 48% 毛利率假設** —— 呢度係實數（收入 − 零件成本）。
+
+```sql
+WITH win AS (
+  SELECT
+    CASE WHEN date_part('day',current_date)=1 THEN (date_trunc('month',current_date)-interval '1 month')::date
+         ELSE date_trunc('month',current_date)::date END ms,
+    CASE WHEN date_part('day',current_date)=1 THEN (date_trunc('month',current_date)-interval '1 day')::date
+         ELSE (current_date-1) END me,
+    CASE WHEN date_part('day',current_date)=1 THEN (date_trunc('month',current_date)-interval '1 day')::date
+         ELSE current_date END me_mtd
+),
+cost AS (   -- 零件成本：unit_cost 係成本，unit_price 係售價，唔好撈亂
+  SELECT t.job_order_id, sum(p.quantity*coalesce(p.unit_cost,0)) parts_cost
+  FROM job_tasks t JOIN job_task_parts p ON p.task_id=t.id AND p.status<>'取消'
+  GROUP BY 1
+),
+billed AS (  -- 已交車 = 已出單，基準 delivered_at（同 app 一致）
+  SELECT j.delivered_at::date d, b.grand_total rev, coalesce(c.parts_cost,0) pcost
+  FROM v_job_order_billing b
+  JOIN job_orders j ON j.id=b.job_order_id
+  LEFT JOIN cost c ON c.job_order_id=b.job_order_id
+  WHERE j.delivered_at IS NOT NULL
+)
+SELECT
+ (SELECT count(*) FROM billed,win WHERE d BETWEEN ms AND me_mtd) g_cnt,
+ (SELECT round(sum(rev),2) FROM billed,win WHERE d BETWEEN ms AND me_mtd) g_rev,
+ (SELECT round(sum(pcost),2) FROM billed,win WHERE d BETWEEN ms AND me_mtd) g_parts_cost,
+ (SELECT round(sum(rev)-sum(pcost),2) FROM billed,win WHERE d BETWEEN ms AND me_mtd) g_gp,
+ (SELECT round(100.0*(sum(rev)-sum(pcost))/nullif(sum(rev),0),1) FROM billed,win WHERE d BETWEEN ms AND me_mtd) g_gp_pct,
+ (SELECT round(sum(rev),2) FROM billed,win WHERE d=me) g_rev_lcd,
+ (SELECT count(*) FROM billed,win WHERE d=me) g_cnt_lcd,
+ (SELECT round(sum(rev),2) FROM billed,win WHERE d BETWEEN (ms-interval '1 month')::date AND (me_mtd-interval '1 month')::date) g_rev_lastmonth,
+ (SELECT round(sum(rev)-sum(pcost),2) FROM billed,win WHERE d BETWEEN (ms-interval '1 month')::date AND (me_mtd-interval '1 month')::date) g_gp_lastmonth,
+ (SELECT max(d) FROM billed) g_maxdate;
+```
+
+### 口徑依據
+- **來源 = `v_job_order_billing.grand_total`**（= 零件售價 + 工時 + 報價工資 − 折扣），基準 `delivered_at`（已交車）。實測 `payment_received_at` 出同一組數，`completed_at` 則唔啱（少 11 單）。
+- **零件成本 = `job_task_parts.quantity × unit_cost`**，排除 `status='取消'`。⚠️ `unit_price` 係**賣俾客嘅價**、`unit_cost` 先係**入貨成本**，撈亂會令毛利變成 0。
+- 有 3 張單完全冇零件（純工時），`coalesce(...,0)` 後照計入，毛利 = 全數收入。
+
+### ⚠️ 車房營收有兩個來源，時間上接力（唔好加埋，會雙計）
+| | 6月 | 7月 | 8月 | 9月 |
+|---|---|---|---|---|
+| BC GARAGE `bc_sales_invoices` | 141 / $343,503 | 147 / $320,791 | 176 / $363,665 | **0** |
+| garage-system `job_orders` | — | — | — | 21 / $29,887 |
+
+- garage-system 嘅**交車工單流程 2026-09-01 先上線**（最早 `delivered_at` = 9/1），所以 9 月前冇數。
+- **BC 全表（唔止 GARAGE 維度）停咗喺 2026-08-31**，`max(created_at)` 亦係 8/31 → 同步已中斷 4 日，**唔係單純 lag**，要修。
+- 21 張 9 月工單 `bc_sales_order` / `bc_pushed_at` **全部 NULL**，即係仲未推去 BC。將來 BC 一旦補回 9 月，同一筆生意會兩邊都有 → **只可以揀一個來源，唔准相加**。
+- 現行規則：**9 月起以 garage-system 為準**（有真實成本，係營運系統本身）；8 月及之前用 BC。月比較（vs 上月）跨越呢個切換點時要標明「來源已切換，非同口徑」。
+
 ## 追數/GP 計法
 見 `sections/05-helmet-king.md`（通用追數公式 + 集團總 GP 五+租屋 分項相加，必填）。目標見 `config.monthly_targets` / `group_profit`。
 
