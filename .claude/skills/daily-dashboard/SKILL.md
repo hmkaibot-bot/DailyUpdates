@@ -39,6 +39,9 @@ description: 產生頭盔王每日 dashboard 並發送到 Slack daily 頻道。�
    **絕不准**用 BC（`bc_sales_invoices`）補車房數、絕不准同 garage-system 相加。
    歷史比較欄 `comparable=false` 就出「未夠比較期」，**唔准為咗個報表好睇而 fallback BC**。
 7. **車房毛利直接叫「毛利」**（收入 − 零件成本）。師傅人工唔入 GP，係公司會計口徑，唔好加「未計人工」但書。但舊制 48% 假設同新實數**唔具可比性**，唔好攞嚟做趨勢比較。
+8. **車房月目標 $250k 係「毛利」，唔係營業額**（`monthly_targets.garage.basis = gross_profit`）。
+   追數必須攞 Q3b 嘅 `g_gp` 同 $250k 比；攞 `g_mtd`（營業額）去比會**高估達成率約 1.4 倍**。
+   四線之中只有零售係營業額目標，車房/賣車/租車都係利潤目標。
 
 ## 區塊總覽
 
