@@ -94,3 +94,155 @@ WHERE NOT EXISTS (SELECT 1 FROM public.invoice_summary s WHERE s.invoice_number 
 | final_price | ❌ 只能改流程 | 決定語意；要不要我寫「結案自動計價」trigger（往後生效，不回填歷史） |
 | daily_cash_reports | ❌ 只能改流程 | 要不要我做「車房每日結算」skill（往後人手埋數） |
 | **dashboard 報表** | ✅ 已改用 BC GARAGE 權威來源 | 無 |
+
+---
+
+# 更新（2026-09-04）：車房營收/毛利來源已切換
+
+## ✅ 缺口 2/3 實質解決 —— 車房有真實毛利了
+
+garage-system 嘅**交車工單流程 2026-09-01 上線**（最早 `job_orders.delivered_at` = 9/1），
+而家可以直接算出**真實毛利**，唔使再靠「營業額 × 48% 假設」：
+
+```
+收入   = v_job_order_billing.grand_total（基準 delivered_at）
+零件成本 = sum(job_task_parts.quantity × unit_cost)，排除 status='取消'
+毛利   = 收入 − 零件成本
+```
+
+2026-09-04 實測 **21 單 / 收入 $29,887.00 / 零件成本 $8,560.25 / 毛利 $21,326.75 / 71.4%**，
+同 26 維修部 app 儀表板分毫不差。鎖定 SQL 見 `daily-dashboard/queries.md` Q3b。
+
+> ⚠️ `job_task_parts.unit_price` 係**賣俾客嘅價**，`unit_cost` 先係**入貨成本**。撈亂會令毛利變 0。
+> ⚠️ `invoices` / `invoice_lines` 兩張表係**空**嘅，所以 `v_invoice_gross_profit` 查唔到嘢——唔好用嗰個 view。
+
+## 🚨 新缺口：BC 同步 2026-08-31 起中斷
+
+`bc_sales_invoices` **全表**（唔止 GARAGE 維度）`max(invoice_date)` 同 `max(created_at)` 都停喺 **2026-08-31**，
+到 9/4 已經斷咗 4 日。呢個唔係以往嗰種一兩日 lag，係同步壞咗，**要修**。
+
+影響：2026-09 之後 BC 完全冇車房數。暫時靠 garage-system 工單頂住，但：
+- BC 亦係**零售以外**其他 BC 維度數據嘅來源，斷咗會影響其他報表；
+- 9 月嗰 21 張工單 `bc_sales_order` / `bc_pushed_at` **全部 NULL**，即係仲未推去 BC。
+
+## ⚠️ 兩個來源絕不可相加
+
+| | 6月 | 7月 | 8月 | 9月 |
+|---|---|---|---|---|
+| BC GARAGE `bc_sales_invoices` | 141 / $343,503 | 147 / $320,791 | 176 / $363,665 | **0** |
+| garage-system `job_orders` | — | — | — | 21 / $29,887 |
+
+時間上係**接力**唔係重疊。現行規則：**2026-09 起以 garage-system 為準**，8 月及之前用 BC。
+一旦 BC 修好並補回 9 月，同一筆生意會兩邊都有 —— **只可揀一個來源**。
+跨越切換點做月比較（vs 上月）時，報表必須標明「來源已切換，非同口徑」。
+
+---
+
+# 決定（2026-09-04）：不再以 BC 為準，車房全改用 garage-system
+
+老闆指示：**「現在開始不再以 bc 為準，全改用 garage-system」**。已全面切換，逐檔改動見 commit。
+
+## 切換後嘅唯一權威
+```
+車房營收 = v_job_order_billing.grand_total，基準 job_orders.delivered_at（HKT）
+零件成本 = job_task_parts.quantity × unit_cost，排除 status='取消'
+毛利    = 收入 − 零件成本  ← 叫「零件貢獻毛利（未計師傅人工）」
+```
+鎖定 SQL = `daily-dashboard/queries.md` **Q3b**。BC 只剩 `Q1c` 一條 ≤2026-08-31 嘅月度腳註參考，
+窗口硬 clamp，2026-10-01 後可刪。
+
+## 歷史比較：誠實留白，唔補數
+garage-system 冇 2026-09-01 之前嘅營收歷史（工單流程嗰日先上線）。已查證**冇任何非 BC 嘅替代來源**：
+
+| 候選 | 否決理由 |
+|---|---|
+| `invoice_summary` | **就係 BC 鏡像**（用咗等於冇切換）；漏數，8 月逐日對數 7 日短數，**最爛嗰日 08-28 錄 1 張 $150、BC 實際 8 張 $10,723（短 98.6%）**；冇成本欄位 |
+| `_archive_*_20260831` | 337 張入面 177 張 `delivered_at` 全部同一日（批量回填造假）、`out_date` 100% NULL、`_archive_job_task_parts` **根本冇 `unit_cost` 欄**、重建收入只覆蓋同期 BC 嘅 **14.5%** |
+| `payment_receipts` / `v_daily_cash_summary` | 得 7 行、停 2026-06-23、內容係供應商付款＋退款 |
+| `v_simple_pl` | 每行 revenue = 0（建喺空嘅 `invoices` 上） |
+| `quotations` / `customer_package_usages` / `daily_cash_reports` | 空表 |
+
+**做法**：`Q3b` 用 `g_src_start = min(delivered_at)`（**唔係硬編**）自動算出
+`g_wow_comparable` / `g_lastmonth_comparable`。false 就出「未夠比較期」，
+**絕不 fallback BC、絕不當 $0 計跌幅**。`g_wow` 2026-09-08 自動有數、`g_lastmonth` 2026-10-01 自動有數，唔使改檔。
+
+> 附帶一提：2026-09-04 係星期五，上週同日 = **08-28**，正正就係鏡像最爛嗰一日。
+> 用 `invoice_summary` 補呢欄會印出「vs 上週同日 **+8,526%**」。
+
+## 🔴 三個必須向老闆提嘅風險
+
+**R1 — $400k 月目標喺新口徑下已經失效。** $400k 按 BC 訂（8月 176張/$363,665/均$2,066）；
+garage-system 均價 $1,423、4 日 $7,472/日 → 埋月推算約 $194k–$249k，**最樂觀都只係目標六成**。
+而且呢 4 日樣本（9/1二–9/4五）**完全冇星期六**。→ 未重校前 #車房 唔准出「達成%／落後」。
+
+**R2 — 兩個口徑根本唔係量同一樣嘢。** 單量差距細（5.25/日 vs 6.77/日 = 78%）但**中位數只有 44%**
+（$597 vs $1,360）→ 唔係做少咗客，係少咗一類生意。BC 8 月 176 張入面 **57 張（32%）完全冇工時行
+= 純貨品/配件單**，佔全月約 25% 收入。而 21 張已交車工單 `appointment_id` **全部非空（0 張 walk-in）**。
+→ 櫃檯落單／配件零售／26 Pack 預售**結構上入唔到 `job_orders`**。呢三條計唔計入「車房營收」要老闆定。
+
+**R3 — 71.4% 唔係 all-in 毛利率。**
+(a) **工時完全零成本**：工時 $17,185 佔收入 57.5%，公式冇任何師傅人工 → 等於當 8 個師傅 100% 毛利。
+    舊嗰個 48% 假設反而接近 all-in，**兩個數放埋一齊比較係錯嘅**。
+(b) 4 張單零件冇入 `unit_cost`（涉售價 $3,940）；按有價零件成本率 68.5% 補返，毛利率跌到約 **62%**。
+(c) **會遮住營收暴跌**：舊法 8/30 快照 gp_garage $175,558；新法若營收跌 38%，GP 分項只跌 8.5%
+    → 老闆睇 GP 行**睇唔出出事**。$1M 集團 GP 目標當初就係按「BC $365k × 48% ≈ $175k」校出，**分母一換目標本身失效**。
+
+## 🟠 其他要跟嘅事
+- **Routine prompt 唔喺 repo 入面**，仲寫死住「車房(garage-system + Retail Dashboard 的 BC GARAGE)」，
+  而且 routine clone default branch → **未 merge 入 main 嘅改動唔會生效**。要用 `update_trigger` 改（唔好 delete+recreate，會失去 run history）。
+- **BC 其實冇死，死嘅係一條 sync**：garage-system 自己嗰條 `bc_invoice_status` 仲有 9/1–9/3 嘅新發票（102 行），
+  而 Retail Dashboard 嘅 `bc_sales_invoices` 停喺 8/31。即係 **Retail Dashboard 嗰條 pipeline 壞咗**，可以修。
+  建議照修 —— 零售報表仲要用，`bc_purchase_invoices`（供應商發票／真實入貨成本）亦已斷供，
+  而佢正正係將來想補返「真實零件／人工成本」嘅唯一來源。
+- **切走車房之後冇人再會發現 BC 死咗**。前車可鑑：`bc_sales_invoices` 嘅 **CARSHOP 維度已經死咗 7 個月**
+  （停 2026-02）一直冇人 flag。→ `11-exceptions` 應加一條獨立嘅 BC 停更例外。
+- **兩個現有「資料新鮮度」檢查全部係盲嘅**：`etl_sync_log` 0 行；`bc_sync_state` 根本唔係入庫監控
+  （係另一條 AI 對帳 job，日日報 success）。所以斷咗 4 日先發現。
+- **`v_job_order_billing` 三個計數地雷**：工時冇 status filter（46 條 task 有 34 條仲係「待開始」但 $14,685 工時照入收入）；
+  10/46 條 `customer_price = 0`（收入低報）；`quotation_labour` 加喺 `tasks_labour` 之上，
+  `quotations` 一旦啟用就**工時雙計**。Q3b 已加 `g_unpriced_task_jobs` / `g_quo_labour_jobs` 預警。
+- **`daily_dashboard_log` 冇 schema_version / source**，車房 key 名亦已亂（garage / garage_revenue / garage_bc …），
+  加上今次口徑切換冇標記 → 歷史值將來會唔可解讀。趁得 8 行加欄好平（要人手 `apply_migration`，唔喺 skill 唯讀範圍）。
+
+## ✅ 老闆拍板（2026-09-04，同日稍後）—— 三個未決問題已有答案
+
+**1. 車房月目標：$400k → `$250,000`**（`monthly_targets.garage.amount`）
+「暫時預」= 先用住，觀察一兩個月後可再校。目標而家同數字**同一口徑**（都係 garage-system 工單），
+所以報表**可以正常出達成%**，之前嗰條「唔准出達成%」嘅限制取消。
+
+**2. 櫃檯落單／配件零售／26 Pack —— 唔計入車房營收**
+即係維持 garage-system 工單口徑，唔使為咗追返 BC 嗰 32% 純貨品單而改系統。
+老闆補充：**26 Pack 套票收入係 realize（客人使用）之後先確認**，所以工單口徑本身就會少計 ——
+呢個係**已知並接受**嘅特性，唔係 bug，唔使補數。
+→ 上面 R2 從此唔再係「未決風險」，係已接受嘅口徑定義。
+
+**3. 師傅人工唔喺 Gross Profit 內處理**
+公司會計口徑：師傅人工屬**營運開支**，唔係 COGS。所以「收入 − 零件成本」**已經係完整嘅毛利**，
+報表直接叫「**毛利**」，唔使加「未計人工」但書。
+→ 上面 R3(a) 撤回 —— 71.4% 唔係「假嘅高」，係正常口徑。
+→ R3(b) **仍然有效**：部分零件未入 `unit_cost`（實測 4 張單、涉售價 $3,940）會令毛利略偏高，
+   叫同事入齊成本價即可解決；Q3b `g_missing_cost_cnt` 會繼續監察。
+→ R3(c) 保留一半：舊制 48% 假設同新實數**唔具可比性**，唔好攞嚟做趨勢比較。
+   另外 $1M 集團 GP 目標當初按「車房 BC $365k × 48% ≈ $175k」校出，車房月營收目標已由 $400k 降到 $250k，
+   **$1M 可能要相應下調** —— 呢項仍待老闆定。
+
+### 仍然未決
+- 集團 GP 月目標 $1M 要唔要跟住下調？
+- BC pipeline（Retail Dashboard `bc_sales_invoices`，8/31 起壞）要唔要修？零售報表仲要用。
+- Routine prompt（唔喺 repo 內）仲寫死住「車房(garage-system + BC GARAGE)」，要用 `update_trigger` 改。
+- `main` branch 落後，routine 若 clone default branch 則 repo 改動唔會生效。
+
+### 更正（2026-09-04）：車房 $250k 係「毛利」目標，唔係營業額目標
+
+老闆澄清：「車房我的毛利率目標希望是250k」。`monthly_targets.garage.basis` 由 `revenue` 改為 `gross_profit`。
+
+**追數規則**：攞 Q3b 嘅 **`g_gp`** 同 $250k 比，**唔好攞 `g_mtd`（營業額）去比** —— 會高估達成率約 1.4 倍。
+（例：2026-09-04 營業額 $29,887 → 若誤當達成率係 12.0%；實際毛利 $21,327 → 真達成率 **8.5%**。）
+
+**呢個目標有幾進取**：按實測毛利率 71.4% 反推，$250k 毛利 ≈ 需要 **$350k/月營業額**（約 $11,670/日）。
+作參考，舊 BC 口徑 2026-08 營業額係 $363,665 —— 即係大致等同要做返舊制水平，
+但而家嘅工單口徑**唔包**櫃檯落單／配件零售／26 Pack（已決定唔計）。
+2026-09-01~04 實測平均 $7,472 營業額/日、$5,332 毛利/日 → 埋月推算毛利約 $160k（目標嘅 64%）。
+→ 呢個係**伸展目標**，唔係按現狀外推嘅目標。四日樣本亦未包含星期六，實際可能好啲。
+
+四線目標基準：零售 = 營業額；**車房 = 毛利**；賣車 = 純利；租車 = 純利。

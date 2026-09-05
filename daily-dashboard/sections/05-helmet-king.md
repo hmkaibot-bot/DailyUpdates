@@ -7,11 +7,18 @@
 | 業務線 | 權威來源 | project_id | 重點表 |
 |--------|----------|-----------|--------|
 | 零售（Helmet King Shopify） | Retail Dashboard | `myrangmxyjamsupbxbba` | `shopify_orders`, `shopify_order_lines`, `shopify_products`, `meta_ad_insights` |
-| **車房營收（Helmet King + 26King）** | **Retail Dashboard 的 BC GARAGE 維度** | `myrangmxyjamsupbxbba` | **`bc_sales_invoices` WHERE `dimension1_code='GARAGE'`**, `bc_invoice_lines` |
-| 車房營運（預約/工單） | garage-system | `qxxegmvwtndoosqrhyar` | `appointments`, `job_orders`（只用狀態/數量，**不用 final_price**） |
+| **車房營收 + 毛利 + 營運** | **garage-system（權威，2026-09-01 起）** | `qxxegmvwtndoosqrhyar` | **`v_job_order_billing`, `job_orders`, `job_tasks`, `job_task_parts`**, `appointments` |
+| 車房營收（歷史 ≤2026-08-31，僅腳註參考） | ~~Retail Dashboard 的 BC GARAGE 維度~~ 已退役 | `myrangmxyjamsupbxbba` | `bc_sales_invoices`（見 queries.md Q1c） |
 
-> ⚠️ **車房營收一律取 BC GARAGE 維度**，不要用 garage-system 的 `invoice_summary`（停在 2026-04-08）、
-> `daily_cash_reports`（空表）、或 `job_orders.final_price`（全 NULL）——詳見 `/DATA-GAPS.md` 調查。
+> ⚠️ **2026-09-04 起：車房營收唯一權威 = garage-system 交車工單**（老闆決定不再以 BC 為準）。
+> 鎖定 SQL 見 `daily-dashboard/queries.md` **Q3b**，逐條照跑。
+>
+> **不要用**：`invoice_summary`（BC 鏡像、凍結在 2026-08-31、逐日最多短 98.6%）、`daily_cash_reports`（空表）、
+> `job_orders.final_price`（全 NULL）、`_archive_*` 表（delivered_at 批量回填造假、無 unit_cost）、
+> `payment_receipts` / `v_daily_cash_summary`（只有 7 行、停在 2026-06-23、內容是供應商付款）。
+>
+> **BC 與 garage-system 絕不可相加** —— 時間上接力而非重疊（BC ≤2026-08-31、工單 2026-09-01 起）。
+> 詳見 `/DATA-GAPS.md`。
 > 這三張是車房 app 的營運表、目前未維護，拿來算營收會嚴重失真。
 
 ## ⏰ 重要：以「最後一個完整日」為準
@@ -49,13 +56,16 @@ GROUP BY 1 ORDER BY 1 DESC;
 -- 今日(current_date)若要附參考，另跑一條並標「未結算」，不參與比較。
 ```
 
-車房營收（權威：BC GARAGE 維度，最後一個完整日為準，排除今日）：
+車房營收（權威：garage-system 交車工單，2026-09-01 起）：
+**唔好喺呢度重寫 SQL —— 逐條照跑 `queries.md` Q3b。** 口徑摘要：
 ```sql
-SELECT invoice_date AS d, count(*) AS invoices, sum(total_amount_incl_tax) AS revenue
-FROM bc_sales_invoices
-WHERE dimension1_code = 'GARAGE' AND number LIKE 'SI-%' AND status <> 'Canceled'
-  AND invoice_date < current_date                -- 只取已結束的日子
-  AND invoice_date >= current_date - interval '9 days'
+-- garage-system qxxegmvwtndoosqrhyar（完整版見 queries.md Q3b）
+-- 收入   = v_job_order_billing.grand_total，基準 job_orders.delivered_at（轉 HKT）
+-- 零件成本 = job_task_parts.quantity × unit_cost，排除 status='取消'
+--          ⚠️ unit_price 係售價、unit_cost 先係成本
+-- 毛利   = 收入 − 零件成本   （師傅人工唔入 GP，係公司會計口徑）
+-- 歷史比較：g_wow_comparable / g_lastmonth_comparable = false 時出「未夠比較期」，
+--          絕不 fallback BC、絕不當 $0 計跌幅
 GROUP BY 1 ORDER BY 1 DESC;
 ```
 
@@ -67,8 +77,9 @@ WITH b AS (SELECT date_trunc('month',current_date)::date ms,
 SELECT
   (SELECT round(sum(total_price)) FROM shopify_orders,b WHERE cancelled_at IS NULL AND created_at::date>=ms AND created_at::date<current_date) AS retail_mtd,
   (SELECT round(sum(total_price)) FROM shopify_orders,b WHERE cancelled_at IS NULL AND created_at::date>=lms AND created_at::date<lms+days_elapsed) AS retail_lastmonth_same,
-  (SELECT round(sum(total_amount_incl_tax)) FROM bc_sales_invoices,b WHERE dimension1_code='GARAGE' AND number LIKE 'SI-%' AND status<>'Canceled' AND invoice_date>=ms AND invoice_date<current_date) AS garage_mtd,
-  (SELECT round(sum(total_amount_incl_tax)) FROM bc_sales_invoices,b WHERE dimension1_code='GARAGE' AND number LIKE 'SI-%' AND status<>'Canceled' AND invoice_date>=lms AND invoice_date<lms+days_elapsed) AS garage_lastmonth_same
+  -- ⚠️ 車房已唔喺呢條 query 出（2026-09-04 起改用 garage-system）。車房 MTD/上月同期一律取 queries.md Q3b
+  --    嘅 g_mtd / g_lastmonth（連同 g_lastmonth_comparable）。唔好喺呢度加返 bc_sales_invoices。
+  NULL::numeric AS garage_mtd_moved_to_Q3b
 FROM b;
 -- MTD 區間 = [月初, current_date)；上月同期 = [上月初, 上月初+已過天數)，確保同日數可比。
 ```
@@ -89,7 +100,7 @@ SELECT count(*) AS jobs_today FROM job_orders WHERE created_at::date = current_d
 🪖 頭盔王生意報表（資料截至 {last_complete_day}）
 【昨日 / 最後完整日】
 • 零售：$X（N 單）　▲/▼ vs 前一日　▲/▼ vs 上週同日
-• 車房 (BC GARAGE)：$X（N 張發票）　▲/▼ vs 前一日　▲/▼ vs 上週同日
+• 車房 (garage-system 已交車)：$X（N 張）　▲/▼ vs 前一日　｜ vs 上週同日：見 comparable flag
 【本月至今 MTD（{month_start}→{last_complete_day}）】
 • 零售：$X（N 單）　▲/▼ vs 上月同期
 • 車房：$X（N 張）　▲/▼ vs 上月同期
@@ -124,7 +135,7 @@ days_in_month= 當月總日數                         例：6月=30
 **計算步驟（必做）**：先把 5 個分項各算出一個數字，再相加成一個總額，最後對 100萬目標算達成%。**即使某分項為 0 或缺資料，也要用可得分項相加並照常輸出一個總數字——這一行永不留空。**
 ```
 gp_retail   = 零售 MTD 營業額 × 0.34
-gp_garage   = 車房 MTD 營業額 × 0.48
+gp_garage   = 車房 MTD 毛利 = Q3b 嘅 g_gp        (真實；師傅人工唔入 GP，係公司會計口徑)
 gp_sales    = 賣車 MTD 淨利 = 毛利 × 0.9      (減10%佣金；真實)
 gp_rental   = 租車 MTD 淨利                  (真實)
 gp_insurance= CostGo 本月 gross_premium × 0.15  (config commission_pct；資料缺則 0)
@@ -133,17 +144,25 @@ gp_property = 租屋收入 固定 $52,000            (config group_profit.proper
 集團總 GP(MTD) = gp_retail + gp_garage + gp_sales + gp_rental + gp_insurance + gp_property   ← 必輸出此數字
 達成% = 集團總 GP ÷ 1,000,000 ；距標 = 1,000,000 − 集團總 GP
 ```
-- **零售/車房 DB 無成本(COGS)** → 毛利率假設(34%/48%，config 可改)，**輸出時必附 caveat**。
+- **零售 DB 無成本(COGS)** → 仍用毛利率假設(34%，config 可改)，**輸出時必附 caveat**。
+- **車房已改用實數**（2026-09-01 起）：`gp_garage` = Q3b 嘅 `g_gp`，唔再用 48% 假設。
+  老闆 2026-09-04 確認：**師傅人工本身唔喺 Gross Profit 內處理**（屬營運開支，唔係 COGS），
+  所以呢個就係公司口徑嘅毛利，直接叫「毛利」即可，唔使加但書。
+  唯一保留：部分零件未入 `unit_cost` 會令毛利略偏高（Q3b `g_missing_cost_cnt`）。
+  2026-08-31 或之前嘅歷史期間，車房仍用 BC 營業額 × 48%（舊估算，同新實數唔具可比性）。
 - 租屋收入：固定 $52,000/月（config `property_rent`），計入 GP，無 target。
 - 旅行團：併入報數（無 target，來源待確認）；若有金額則加進總額並註明。
-> 範例驗算(6/27)：零售411,761 + 車房146,665 + 賣車淨利177,142(196,824×0.9) + 租車3,640 + 保險9,409 + 租屋52,000 = **$800,617** / 100萬 = 80.1%（應達 90% → 落後）。實際每日重算，數字會變，但**格式固定要有總數**。
+> 範例驗算(6/27，舊口徑)：零售411,761 + 車房146,665(BC×48%) + 賣車淨利177,142 + 租車3,640 + 保險9,409 + 租屋52,000 = **$800,617** / 100萬 = 80.1%。
+> 範例驗算(2026-09-04，新口徑)：零售67,138(197,466×0.34) + 車房**21,327**(Q3b g_gp 實數) + 賣車淨利40,959 + 租車4,090 + 保險644 + 租屋52,000 = **$186,158** / 100萬 = 18.6%。
+> 實際每日重算，數字會變，但**格式固定要有總數**。
+> 註：$1M 當初係按「車房 BC $365k × 48% ≈ $175k」校出；車房而家改用工單口徑（月營收目標亦由 $400k 改為 **$250k**），$1M 可能要相應下調，待老闆定。
 
 ## 輸出格式（集團追數版）
 ```
 🪖 集團生意（資料截至 {LCD}｜本月 {elapsed}/{days_in_month} 日）
 線別            MTD          目標     達成%   距標      餘{n}日需/日
 零售(營)        $1.21M       $1.4M    87%     $189k     $63k
-車房(營)        $306k        $400k    76%     $94k      $31k
+車房(毛利)      $XXXk        $250k    XX%     $XXXk    $Xk    ← 2026-09-04 起：目標係「毛利」，唔係營業額
 賣車(淨利)      $177k        $250k    71%     $73k      $24k    （毛利−10%佣金）
 租車(純利)      $3.6k        $20k     18%     $16k      $5.5k
 旅行團          $XXX         —        報數      —         （無 target）
