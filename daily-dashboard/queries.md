@@ -196,17 +196,18 @@ SELECT
 ```
 > 未來預約不足：`next7_booking` 內任何一日 `n < 4`（config `garage_booking_alert.low_booking_threshold_per_day`）→ flag 並列該日。
 
-## Q3b — 車房營收 + 零件貢獻毛利（garage-system `qxxegmvwtndoosqrhyar`）★ **車房營收/毛利唯一權威**
+## Q3b — 車房營收 + 毛利（garage-system `qxxegmvwtndoosqrhyar`）★ **車房營收/毛利唯一權威**
 
 2026-09-04 老闆決定：**不再以 BC 為準，全改用 garage-system**。呢條取代咗原本 Q1 入面嘅車房 BC 半段。
 實測重現 26 維修部 app：`g_mtd_cnt 21 · g_mtd 29,887.00 · g_parts_cost 8,560.25 · g_gp 21,326.75 · g_gp_pct 71.4`。
 
-> ⚠️ **`g_gp` 係「零件貢獻毛利」，唔係 all-in 毛利率。** 工時佔收入 57.5% 而公式**完全冇師傅人工成本**，
-> 所以 71.4% 係上限值，唔可以攞嚟同舊制 48% 假設直接比較（48% 反而接近 all-in）。報表一律叫
-> 「零件貢獻毛利（未計人工）」。
+> **`g_gp` 就係公司口徑嘅毛利。** 老闆 2026-09-04 確認：**師傅人工本身唔喺 Gross Profit 內處理**
+> （屬營運開支，唔係 COGS），所以「收入 − 零件成本」已經係完整嘅 GP，報表直接叫「毛利」，唔使加但書。
+> 唯一保留：`g_missing_cost_cnt` > 0 表示有零件未入成本 → 毛利略偏高。
+> 舊制 48% 假設係粗略估算，同今日嘅實數**唔具可比性**，唔好攞嚟做趨勢比較。
 
 ```sql
--- Q3b — 車房營收 + 零件貢獻毛利（garage-system qxxegmvwtndoosqrhyar）★ 車房營收/毛利唯一權威
+-- Q3b — 車房營收 + 毛利（garage-system qxxegmvwtndoosqrhyar）★ 車房營收/毛利唯一權威
 -- 2026-09-04 實跑重現：g_mtd_cnt 21 · g_mtd 29887.00 · g_parts_cost 8560.25 · g_gp 21326.75 · g_gp_pct 71.4
 -- 設計原則：
 --   (1) 冇任何 hardcode 日期／金額。切換日由 min(delivered_at) 自己讀出（g_src_start），
@@ -349,8 +350,10 @@ BC 8 月 176 張 / $363,665 / 均價 $2,066；garage-system 9 月頭 4 日 21 �
 單量係 BC 嘅 78%，但**中位數只有 44%**（$597 vs $1,360）—— 唔係做少咗客，係少咗一類生意：
 - BC 8 月 176 張入面 **57 張（32%）完全冇工時行 = 純貨品/配件單**，佔全月約 25% 收入。
 - 21 張已交車工單實測：`appointment_id` **全部非空（0 張 walk-in）**、無 parts-only 單、無 26 Pack 使用。
-→ 櫃檯落單／配件零售／26 Pack 預售**結構上入唔到 `job_orders`**。呢啲收入計唔計入「車房營收」要老闆定；
-未定之前，`monthly_targets.garage` 嘅 $400k **唔可以攞嚟計達成%**（見 config `basis_note`）。
+→ 櫃檯落單／配件零售／26 Pack 預售**結構上入唔到 `job_orders`**。
+**老闆 2026-09-04 決定：呢啲唔計入車房營收。** 26 Pack 套票收入係 realize（客人使用）之後先確認，
+所以工單口徑本身會少計 —— 屬已知並接受嘅特性，唔係 bug，唔使補。
+月目標亦已按新口徑由 $400k 改為 **$250k**，所以達成% **可以正常出**。
 
 ## 追數/GP 計法
 見 `sections/05-helmet-king.md`（通用追數公式 + 集團總 GP 五+租屋 分項相加，必填）。目標見 `config.monthly_targets` / `group_profit`。

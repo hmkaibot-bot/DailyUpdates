@@ -87,8 +87,9 @@
     },
     "garage": {
       "basis": "revenue",
-      "amount": 400000,
-      "basis_note": "$400k 係按舊 BC 發票口徑訂（2026-08：176張/$363,665/均價$2,066）。garage-system 交車工單均價 $1,423，且結構上唔包 walk-in 配件零售、櫃檯落單、26 Pack 預售 —— 口徑唔同。⚠️ 未經老闆重新校準前，#車房 唔准出「達成 X%／落後」字眼，只出絕對金額 + 「目標待重校」。"
+      "amount": 250000,
+      "basis_note": "老闆 2026-09-04 拍板：暫定 $250,000/月，已按 garage-system 交車工單口徑訂（唔再係舊 BC 嘅 $400k）。「暫時預」= 觀察一兩個月後可再校。目標同數字而家同一口徑，**可以正常出達成%**。",
+      "basis_scope": "車房營收 = garage-system 已交車工單。**唔計** 櫃檯落單／配件零售／walk-in 配件（老闆 2026-09-04 決定）。26 Pack 亦唔另計：套票收入係 realize（客人使用）之後先確認，所以工單口徑本身就會少計 —— 屬已知並接受嘅特性，唔係 bug。"
     },
     "vehicle_sales": {
       "basis": "net_profit",
@@ -101,7 +102,7 @@
     "pacing_rule": "LCD=最後完整日=current_date-1; elapsed=day-of(LCD); days_in_month=當月日數; 達成%=MTD/目標; 應達%=elapsed/days_in_month; 距標=目標-MTD; 餘下日=days_in_month-elapsed; 每日需追=距標/餘下日; 預估埋月=MTD/elapsed*days_in_month。"
   },
   "group_profit": {
-    "_comment": "集團總利潤 = 各組利潤相加。零售仍用毛利率假設(34%)；車房用零件貢獻毛利(未計師傅人工)；賣車/租車用真實淨利。⚠️ 車房嗰項同其餘項層次唔同，比較時要小心 —— 見 garage.caveat。",
+    "_comment": "集團總利潤 = 各組利潤相加。零售仍用毛利率假設(34%)；車房用實數毛利(收入 − 零件成本)；賣車/租車用真實淨利。師傅人工唔入 GP（公司會計口徑，見 garage.accounting_convention）。",
     "retail": {
       "method": "margin_assumption",
       "gross_margin_pct": 34,
@@ -109,15 +110,16 @@
     },
     "garage": {
       "method": "actual",
-      "source": "garage-system 已交車工單零件貢獻毛利 = v_job_order_billing.grand_total − sum(job_task_parts.quantity × unit_cost)（**未扣師傅人工**），見 queries.md Q3b",
+      "source": "garage-system 已交車工單毛利 = v_job_order_billing.grand_total − sum(job_task_parts.quantity × unit_cost)，見 queries.md Q3b",
       "basis_date": "job_orders.delivered_at",
       "effective_from": "2026-09-01",
       "verified": "2026-09-04 實測 21單 收入 $29,887.00 − 零件成本 $8,560.25 = 毛利 $21,326.75 (71.4%)，同 26 維修部 app 儀表板分毫不差",
       "fallback_gross_margin_pct": 48,
       "fallback_note": "**僅限 2026-08-31 或之前嘅歷史期間；2026-09-01 起一律唔准用 48% 假設，亦唔准 fallback 去 BC 補數。** 2026-09-01 前 garage-system 無交車工單資料，該段期間回退用 BC GARAGE 營業額 × 48% 假設。跨越切換點做月比較時必須標明『來源已切換，非同口徑』。",
       "warning_do_not_sum": "車房營收兩個來源時間上接力而非重疊（BC ≤2026-08-31、garage-system 工單 2026-09-01 起）。9月工單 bc_pushed_at 全部 NULL，一旦推去 BC 就兩邊都有 —— 只可揀一個，絕不可相加。",
-      "gp_label": "零件貢獻毛利（未計師傅人工）",
-      "caveat": "⚠️ 呢個唔係 all-in 毛利率。工時佔收入 57.5% 而公式完全冇人工成本；另有零件未入 unit_cost（2026-09-04 實測 4 張單、涉零件售價 $3,940，按有價零件成本率 68.5% 補返，毛利率會由 71.4% 跌到約 62%）。71.4% 係上限值，唔可以同舊制 48% 假設直接比較（48% 反而接近 all-in）。"
+      "gp_label": "毛利（收入 − 零件成本）",
+      "caveat": "⚠️ 唯一實質保留：部分零件未入 unit_cost（2026-09-04 實測 4 張單、涉零件售價 $3,940）→ 毛利略為偏高。叫同事入齊成本價即可解決。舊制 48% 假設本身就係一個粗略估算，同今日嘅實數唔具可比性，唔好攞嚟做趨勢比較。",
+      "accounting_convention": "老闆 2026-09-04 確認：**師傅人工本身唔喺 Gross Profit 內處理**（屬營運開支，唔係 COGS）。所以 GP = 收入 − 零件成本 就係公司口徑嘅毛利，唔使加人工成本，亦唔應該叫做「未計人工」。"
     },
     "vehicle_sales": {
       "method": "actual",
@@ -146,7 +148,7 @@
       "note": "租屋收入（收租），每月固定 HK$52,000，當純利計入集團 GP、無 target。若要扣自付租金再調整 monthly_amount 或改為 net。"
     },
     "monthly_target": 1000000,
-    "target_note": "集團總 GP 月目標 = HK$1,000,000 = 零售毛利估(唯一仍用假設) + 車房零件貢獻毛利(未計人工) + 賣車已實現純利 + 租車淨利 + 保險(保費×15%) + 租屋收入(固定$52,000)。⚠️ $1M 當初係按「車房 BC $365k × 48% ≈ $175k」校出嚟；車房分項換咗口徑（層次唔同）之後，$1M 本身亦需要重新校準 —— 見 group_profit.garage.caveat。",
+    "target_note": "集團總 GP 月目標 = HK$1,000,000 = 零售毛利估(唯一仍用假設) + 車房毛利(實數) + 賣車已實現純利 + 租車淨利 + 保險(保費×15%) + 租屋收入(固定$52,000)。註：$1M 當初係按「車房 BC $365k × 48% ≈ $175k」校出；車房而家改用工單口徑實數（月目標亦由 $400k 改為 $250k），$1M 可能要相應下調，待老闆定。",
     "show_caveat": true
   },
   "sections": {

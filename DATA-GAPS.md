@@ -203,3 +203,31 @@ garage-system 均價 $1,423、4 日 $7,472/日 → 埋月推算約 $194k–$249k
   `quotations` 一旦啟用就**工時雙計**。Q3b 已加 `g_unpriced_task_jobs` / `g_quo_labour_jobs` 預警。
 - **`daily_dashboard_log` 冇 schema_version / source**，車房 key 名亦已亂（garage / garage_revenue / garage_bc …），
   加上今次口徑切換冇標記 → 歷史值將來會唔可解讀。趁得 8 行加欄好平（要人手 `apply_migration`，唔喺 skill 唯讀範圍）。
+
+## ✅ 老闆拍板（2026-09-04，同日稍後）—— 三個未決問題已有答案
+
+**1. 車房月目標：$400k → `$250,000`**（`monthly_targets.garage.amount`）
+「暫時預」= 先用住，觀察一兩個月後可再校。目標而家同數字**同一口徑**（都係 garage-system 工單），
+所以報表**可以正常出達成%**，之前嗰條「唔准出達成%」嘅限制取消。
+
+**2. 櫃檯落單／配件零售／26 Pack —— 唔計入車房營收**
+即係維持 garage-system 工單口徑，唔使為咗追返 BC 嗰 32% 純貨品單而改系統。
+老闆補充：**26 Pack 套票收入係 realize（客人使用）之後先確認**，所以工單口徑本身就會少計 ——
+呢個係**已知並接受**嘅特性，唔係 bug，唔使補數。
+→ 上面 R2 從此唔再係「未決風險」，係已接受嘅口徑定義。
+
+**3. 師傅人工唔喺 Gross Profit 內處理**
+公司會計口徑：師傅人工屬**營運開支**，唔係 COGS。所以「收入 − 零件成本」**已經係完整嘅毛利**，
+報表直接叫「**毛利**」，唔使加「未計人工」但書。
+→ 上面 R3(a) 撤回 —— 71.4% 唔係「假嘅高」，係正常口徑。
+→ R3(b) **仍然有效**：部分零件未入 `unit_cost`（實測 4 張單、涉售價 $3,940）會令毛利略偏高，
+   叫同事入齊成本價即可解決；Q3b `g_missing_cost_cnt` 會繼續監察。
+→ R3(c) 保留一半：舊制 48% 假設同新實數**唔具可比性**，唔好攞嚟做趨勢比較。
+   另外 $1M 集團 GP 目標當初按「車房 BC $365k × 48% ≈ $175k」校出，車房月營收目標已由 $400k 降到 $250k，
+   **$1M 可能要相應下調** —— 呢項仍待老闆定。
+
+### 仍然未決
+- 集團 GP 月目標 $1M 要唔要跟住下調？
+- BC pipeline（Retail Dashboard `bc_sales_invoices`，8/31 起壞）要唔要修？零售報表仲要用。
+- Routine prompt（唔喺 repo 內）仲寫死住「車房(garage-system + BC GARAGE)」，要用 `update_trigger` 改。
+- `main` branch 落後，routine 若 clone default branch 則 repo 改動唔會生效。
